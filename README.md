@@ -92,6 +92,66 @@ npm test   # node --test test/  (17 تست)
 - بدون gVisor، پروژه‌های سفارشی اجرا نمی‌شوند (این رفتار عمدی است)
 
 
+## استقرار روی سرور (Deployment)
+
+### پیش‌نیازها
+- VPS با Ubuntu 22.04/24.04 و دسترسی sudo (حداقل ۱GB RAM)
+- دامنه یا زیردامنه با رکورد A به IP سرور (مثلاً `bots.yourdomain.com`) + گواهی TLS (ترجیحاً با Nginx/Caddy به‌عنوان reverse proxy)
+- توکن ربات کنترل از [@BotFather](https://t.me/BotFather)
+
+### گام ۱ — نصب
+```bash
+sudo apt update && sudo apt install -y git
+git clone https://github.com/Config7x/BotMaker-v2.git
+cd BotMaker-v2
+sudo bash install.sh          # idempotent؛ Node 20، systemd و سرویس را آماده می‌کند
+```
+
+### گام ۲ — پیکربندی
+```bash
+sudo nano /opt/botmaker-v2/.env
+```
+حداقل این مقادیر را پر کنید:
+| کلید | توضیح |
+|---|---|
+| `CONTROL_BOT_TOKEN` | توکن ربات کنترل از BotFather |
+| `ENCRYPTION_KEY` | `openssl rand -hex 32` |
+| `PUBLIC_URL` | آدرس عمومی سرور (ثبت وب‌هوک ربات‌های کاربران) |
+| `OWNER_TELEGRAM_ID` | آیدی عددی شما (کنسول مدیریت) |
+| `SECURITY_ALERT_SECRET` | راز مشترک اندپوینت هشدار Falco |
+
+برای قالب کانتینری #۱۱ (اسکرپر): `TELETHON_API_ID` و `TELETHON_API_HASH` از [my.telegram.org](https://my.telegram.org).
+
+### گام ۳ — اجرا و بررسی
+```bash
+sudo systemctl start botmaker-v2
+sudo systemctl status botmaker-v2            # باید active (running) باشد
+curl http://localhost:8443/healthz           # پاسخ: {"ok":true,...}
+journalctl -u botmaker-v2 -f                  # دنبال‌کردن لاگ‌ها
+```
+
+### قالب‌های کانتینری (اختیاری، فقط Pro/VIP)
+قالب‌های #۱۰ و #۱۱ به Docker + gVisor نیاز دارند و بدون آن **fail-closed** می‌مانند:
+```bash
+# نصب Docker + gVisor طبق gvisor.dev، سپس:
+sudo bash install.sh                          # دوباره اجرا؛ ایمیج‌ها را build می‌کند
+```
+
+### به‌روزرسانی
+```bash
+cd BotMaker-v2 && git pull
+sudo rsync -a --exclude node_modules --exclude .env --exclude data src/ /opt/botmaker-v2/src/
+sudo systemctl restart botmaker-v2
+```
+
+### بکاپ
+```bash
+sudo systemctl stop botmaker-v2
+sudo cp /opt/botmaker-v2/data/botmaker.db ~/botmaker-$(date +%F).db
+sudo systemctl start botmaker-v2
+```
+> نکته: بکاپ خودکار روزانه در ایشو #۵ پیشنهاد شده است.
+
 ## راه‌اندازی سریع
 
 ```bash
