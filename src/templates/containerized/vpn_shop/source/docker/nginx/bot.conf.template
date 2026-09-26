@@ -1,0 +1,82 @@
+location ~* ^/${URL_PATH}/(?:\..*|.*/\..*) {
+    deny all;
+    return 404;
+}
+
+location ~* ^/${URL_PATH}/.*\.(?:env|ya?ml|sql|log|sh|json|bak|lock|md|conf|ini|zip|tmp|err|swp|orig)$ {
+    deny all;
+    return 404;
+}
+
+location ~* ^/${URL_PATH}/(?:.*/)?(?:error_log|hash\.txt|ss|log\.txt|cartlist\.txt)$ { deny all; return 404; }
+
+location ~ ^/${URL_PATH}/cronbot/(?:info|gift|users\.txt.*|broadcast_log\.on)$ { deny all; return 404; }
+
+location ^~ /${URL_PATH}/installer/    { deny all; return 403; }
+location ^~ /${URL_PATH}/storage/      { deny all; return 403; }
+location ^~ /${URL_PATH}/logs/         { deny all; return 403; }
+location ^~ /${URL_PATH}/api/handlers/ { deny all; return 403; }
+location ^~ /${URL_PATH}/api/lib/      { deny all; return 403; }
+location ^~ /${URL_PATH}/panel/lib/    { deny all; return 403; }
+
+location ~* ^/${URL_PATH}/app/.*\.(?:js|mjs)$ {
+    root ${DOC_ROOT};
+    add_header Cache-Control "no-store, no-cache, must-revalidate";
+}
+
+location ~* ^/${URL_PATH}/app/.*\.css$ {
+    root ${DOC_ROOT};
+    add_header Cache-Control "no-store, no-cache, must-revalidate";
+}
+
+location ~* ^/${URL_PATH}/app/.*\.(?:woff2?|svg|png|jpe?g|gif|ico)$ {
+    root ${DOC_ROOT};
+    add_header Cache-Control "public, max-age=2592000";
+}
+
+location ~* ^/${URL_PATH}/panel/.*\.(?:js|mjs|css)$ {
+    root ${DOC_ROOT};
+    add_header Cache-Control "no-store, no-cache, must-revalidate";
+}
+
+location ~* ^/${URL_PATH}/panel/.*\.(?:woff2?|svg|png|jpe?g|gif|ico)$ {
+    root ${DOC_ROOT};
+    add_header Cache-Control "public, max-age=2592000";
+}
+
+location ~ ^/${URL_PATH}/(.*\.php)$ {
+    root ${DOC_ROOT};
+    fastcgi_pass ${APP_UPSTREAM};
+    fastcgi_index index.php;
+    include fastcgi_params;
+    fastcgi_param SCRIPT_FILENAME /var/www/faoxima/$1;
+    fastcgi_param REQUEST_URI $request_uri;
+    fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+    fastcgi_buffers 16 16k;
+    fastcgi_buffer_size 32k;
+}
+
+# Executable-extension case variants and near-misses:
+# never serve, never execute.
+location ~* ^/${URL_PATH}/.*\.(?:php[0-9]?|phtml|phar|pht)$ {
+    deny all;
+    return 404;
+}
+
+location /${URL_PATH}/app/ {
+    root ${DOC_ROOT};
+    try_files $uri $uri/ /${URL_PATH}/app/index.php$is_args$args;
+}
+
+location /${URL_PATH}/sub/ {
+    root ${DOC_ROOT};
+    try_files $uri $uri/ /${URL_PATH}/sub/index.php;
+}
+
+location /${URL_PATH}/ {
+    root ${DOC_ROOT};
+    try_files $uri $uri/ =404;
+}
+
+
+

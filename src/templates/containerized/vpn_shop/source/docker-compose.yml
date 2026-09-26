@@ -1,0 +1,97 @@
+name: ${COMPOSE_PROJECT_NAME:-faoxima}
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      - app
+      - phpmyadmin
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - .:/var/www/faoxima:ro
+      - ${BOTS_DIR}:/var/www/bots:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - certs:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot:ro
+    restart: unless-stopped
+
+  app:
+    image: faoxima_app:latest
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      args:
+        PUID: ${PUID:-33}
+        PGID: ${PGID:-33}
+    env_file: .env
+    environment:
+      DB_HOST: ${DB_HOST:-db}
+      DB_NAME: ${MYSQL_DATABASE}
+      DB_USER: ${MYSQL_USER}
+      DB_PASS: ${MYSQL_PASSWORD}
+      DOMAIN: ${DOMAIN}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_ADMIN_ID: ${TELEGRAM_ADMIN_ID}
+      FAOXIMA_DOCKER_ENV: "1"
+    volumes:
+      - .:/var/www/faoxima
+      - ./docker/php/pool.d/www.conf:/usr/local/etc/php-fpm.d/zz-pool.conf:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/mysql/conf.d:/etc/mysql/conf.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - certs:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    entrypoint: ["sh", "-c"]
+    command: ["trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h; done"]
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    environment:
+      PMA_HOST: db
+      PMA_ABSOLUTE_URI: https://${DOMAIN}/phpmyadmin/
+      PMA_ALLOW_ROOT: "0"
+      UPLOAD_LIMIT: ${PMA_UPLOAD_LIMIT:-50M}
+    volumes:
+      - ./docker/phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  certs:
+  certbot_webroot:

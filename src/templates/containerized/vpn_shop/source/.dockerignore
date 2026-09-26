@@ -1,0 +1,13 @@
+.git
+.gitignore
+.env
+.env.example
+bots
+nginx/conf.d
+backups
+docker-compose.bot-*.yml
+*.log
+logs
+error_log
+md
+install.sh

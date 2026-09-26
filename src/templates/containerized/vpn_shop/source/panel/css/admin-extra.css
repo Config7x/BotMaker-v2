@@ -1,0 +1,752 @@
+.switch {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    flex-shrink: 0;
+    display: inline-block;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    min-width: 0;
+    border: none;
+    position: absolute;
+}
+
+.switch__slot {
+    position: absolute;
+    inset: 0;
+    background: var(--surface-3);
+    border: 1px solid var(--border-mid);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.switch__slot::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    right: 3px;
+    width: 18px;
+    height: 18px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    transition: 0.22s;
+}
+
+.switch input:checked+.switch__slot {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.switch input:checked+.switch__slot::before {
+    background: #fff;
+    right: calc(100% - 21px);
+}
+
+
+.alert {
+    padding: 13px 16px;
+    border-radius: 12px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--icon-gap, 10px);
+    font-size: 13.5px;
+    line-height: 1.7;
+}
+
+.alert>.svg-icon {
+    flex-shrink: 0;
+    margin-inline-start: 0;
+    margin-top: 2px;
+}
+
+.alert>.svg-icon+* {
+    margin-inline-start: 0;
+}
+
+.alert-success {
+    background: var(--color-success-soft);
+    border: 1px solid var(--color-success);
+    color: var(--color-success);
+}
+
+.alert-danger {
+    background: var(--color-danger-soft);
+    border: 1px solid var(--color-danger);
+    color: var(--color-danger);
+}
+
+.alert-warning {
+    background: var(--color-warning-soft);
+    border: 1px solid var(--color-warning);
+    color: var(--color-warning);
+}
+
+
+.setting-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
+    gap: 18px;
+}
+
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px dashed var(--border-soft);
+    gap: 14px;
+}
+
+.setting-row:last-child {
+    border-bottom: 0;
+}
+
+.setting-row__label {
+    font-size: 13px;
+    color: var(--text-main);
+    font-weight: 600;
+    flex: 1 1 auto;
+    line-height: 1.7;
+}
+
+.setting-row__hint {
+    display: block;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-top: 2px;
+}
+
+.setting-row__control {
+    flex-shrink: 0;
+}
+
+.setting-row input[type="number"],
+.setting-row input[type="text"] {
+    width: 130px;
+    padding: 7px 10px;
+    border-radius: 7px;
+    background: var(--surface-3);
+    border: 1px solid var(--border-mid);
+    color: var(--text-main);
+    font-family: 'Vazirmatn', sans-serif;
+    font-size: 13px;
+    text-align: center;
+}
+
+.setting-row input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+@media (max-width: 480px) {
+    .setting-row {
+        flex-wrap: wrap;
+    }
+
+    .setting-row input[type="text"] {
+        width: 100%;
+    }
+}
+
+.save-bar {
+    position: sticky;
+    bottom: 0;
+    margin-top: 24px;
+    padding: 14px 0;
+    background: linear-gradient(180deg, transparent, var(--bg-grad-bot) 30%);
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    align-items: center;
+    z-index: 5;
+}
+
+
+.panel-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr));
+    gap: 16px;
+}
+
+.panel-card {
+    background: linear-gradient(180deg, var(--glass-sheen), transparent 38%), var(--surface-2);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: border-color .15s;
+    box-shadow: var(--shadow-1), var(--glass-edge);
+}
+
+.panel-card:hover {
+    border-color: var(--accent-mid);
+}
+
+.panel-card__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    background: rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid var(--border-soft);
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+[data-theme="light"] .panel-card__head {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.panel-card__name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    flex-wrap: wrap;
+}
+
+.panel-card__name .badge {
+    font-size: 11px;
+}
+
+.panel-card__actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.panel-card__body {
+    padding: 14px;
+}
+
+.panel-card__info {
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px dashed var(--border-soft);
+    font-size: 12.5px;
+}
+
+.info-line {
+    display: flex;
+    gap: 6px;
+    padding: 3px 0;
+    flex-wrap: wrap;
+}
+
+.info-line__k {
+    color: var(--text-muted);
+    font-weight: 600;
+    min-width: 70px;
+}
+
+.info-line__v {
+    color: var(--text-main);
+    word-break: break-all;
+}
+
+.info-line__v.ltr {
+    direction: ltr;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+}
+
+.panel-card__toggles {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.toggle-row .switch__slot {
+    position: relative !important;
+    width: 36px;
+    height: 20px;
+    inset: auto;
+    flex-shrink: 0;
+}
+
+.toggle-row input {
+    display: none;
+}
+
+.toggle-row .switch__slot::before {
+    width: 14px;
+    height: 14px;
+    top: 2px;
+    right: 3px;
+}
+
+.toggle-row input:checked+.switch__slot {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.toggle-row input:checked+.switch__slot::before {
+    background: #fff;
+    right: calc(100% - 17px);
+}
+
+.toggle-row__label {
+    font-size: 12.5px;
+    color: var(--text-main);
+}
+
+@media (max-width: 480px) {
+    .panel-card__toggles {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+.view-toggle {
+    display: inline-flex;
+    background: var(--surface-2);
+    border: 1px solid var(--border-mid);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 2px;
+}
+
+.view-toggle__btn {
+    background: transparent;
+    border: 0;
+    padding: 7px 11px;
+    border-radius: 7px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    transition: background .15s, color .15s;
+}
+
+.view-toggle__btn:hover {
+    color: var(--text-main);
+}
+
+.view-toggle__btn.active {
+    background: var(--accent);
+    color: #fff;
+}
+
+.view-toggle__btn.active .svg-icon {
+    stroke: #fff;
+}
+
+@media (max-width: 480px) {
+    .view-toggle__btn {
+        padding: 6px 9px;
+    }
+}
+
+
+.saved-toast {
+    background: var(--color-success-soft);
+    border: 1px solid var(--color-success);
+    color: var(--color-success);
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+
+/* =========================================================================
+   STAGE 3D-B1 — GENERAL SETTINGS SURFACE
+   miscsettings.php · shopsettings.php · finance.php
+   -------------------------------------------------------------------------
+   The Settings components above were authored before the Stage 2A token
+   layer existed and were never migrated onto it: fields sat on --surface-3
+   (an inverted elevation), the focus ring and the checked switch fill used
+   raw --accent (which is not contrast-validated), alerts used
+   --color-*-soft values that are declared once, for the dark theme only,
+   and the section area was a ragged auto-fill masonry.  This layer
+   re-points those declarations at the frozen token layer and the Stage 2D
+   control contract (--input-bg / --input-h / --control-radius /
+   --control-solid / --control-on-solid / --accent-ring / --sem-*-fg|bg).
+
+   SCOPE: every selector is anchored on
+       #main-content .wrapper.fx-page-settings
+   a marker carried by exactly three pages.  banner.php and
+   trust_channel.php render the same components but do NOT carry the
+   marker, so their rendering is untouched — as is every other page.
+
+   This layer does not reopen a Stage 2D component: .card, .btn and .alert
+   keep their own definitions, and only properties already owned by the
+   legacy Settings rules are re-declared, at strictly higher specificity.
+   No priority-forcing declarations, no global selector, no new token.
+   ========================================================================= */
+
+
+/* ---- 3D-B1.1  Page composition ------------------------------------------
+   Page header (Stage 2C, unchanged) -> stacked full-width sections -> cards
+   holding grouped fields.  Replaces the auto-fill masonry that produced
+   three ragged columns on finance.php. */
+
+#main-content .wrapper.fx-page-settings .setting-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--gap-section);
+}
+
+/* .card + .card carries a 22px top margin from the Stage 2D layer, which
+   would stack on top of the grid gap.  The grid owns the rhythm here. */
+#main-content .wrapper.fx-page-settings .setting-grid > .card + .card {
+    margin-top: 0;
+}
+
+
+/* ---- 3D-B1.2  Section card ---------------------------------------------- */
+
+#main-content .wrapper.fx-page-settings .setting-grid > .card {
+    padding: var(--space-6);
+}
+
+#main-content .wrapper.fx-page-settings .card__head {
+    margin-bottom: var(--space-3);
+    padding-bottom: var(--space-4);
+}
+
+/* Non-text accent indicator -> --accent-ink.  The Stage 2D rule paints this
+   icon with raw --accent, which is not validated against any surface. */
+#main-content .wrapper.fx-page-settings .card__title .svg-icon {
+    color: var(--accent-ink);
+}
+
+@media (min-width: 768px) {
+    /* Field columns inside a section.  The section stays a single full-width
+       column; the field grid inside it is what absorbs the available width,
+       so a wide viewport shortens the page instead of stretching a 130px
+       value box across 1100px.  auto-fill (not auto-fit) so a card whose
+       field count does not fill the last row keeps its column width instead
+       of letting the final field stretch.  Cells stretch, so the row
+       separators stay aligned across columns. */
+    #main-content .wrapper.fx-page-settings .setting-grid > .card {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+        column-gap: var(--space-6);
+    }
+
+    #main-content .wrapper.fx-page-settings .setting-grid > .card > .card__head {
+        grid-column: 1 / -1;
+    }
+}
+
+
+/* ---- 3D-B1.3  Field rows ------------------------------------------------ */
+
+#main-content .wrapper.fx-page-settings .setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+/* Separators are kept on every row.  The card body is a two-column grid at
+   wide widths, so dropping the separator from :last-child would leave two
+   side-by-side cells with only one of them underlined. */
+
+#main-content .wrapper.fx-page-settings .setting-row__label {
+    flex: 1 1 auto;
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.6;
+    color: var(--text-main);
+}
+
+/* Helper text under a label.  The class shipped with the original sheet but
+   was never emitted; it is styled here so it renders correctly when used. */
+#main-content .wrapper.fx-page-settings .setting-row__hint {
+    display: block;
+    margin-top: 2px;
+    font-size: 11.5px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+
+#main-content .wrapper.fx-page-settings .setting-row__control {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+}
+
+/* A labelled field reads as label-over-control, matching the requested card
+   pattern; a switch keeps the label-beside-control row it needs.  If :has()
+   is unsupported the rule is dropped and the row layout degrades to the
+   label-beside-control form rather than to anything broken. */
+#main-content .wrapper.fx-page-settings .setting-row:has(input:not([type="checkbox"])) {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-3) 0;
+}
+
+/* In the stacked form the row is a column flexbox: the label's flex: 1 1 auto
+   from the row form would make it absorb vertical space and push its own
+   field to the bottom of the cell. */
+#main-content .wrapper.fx-page-settings .setting-row:has(input:not([type="checkbox"])) .setting-row__label,
+#main-content .wrapper.fx-page-settings .setting-row:has(input:not([type="checkbox"])) .setting-row__control {
+    flex: 0 0 auto;
+}
+
+#main-content .wrapper.fx-page-settings .setting-row:has(input:not([type="checkbox"])) .setting-row__control {
+    width: 100%;
+}
+
+
+/* ---- 3D-B1.4  Text / number fields --------------------------------------
+   Mirrors the Stage 2D .form-control contract, including its light-theme
+   border step and its --accent-ink + --accent-ring focus treatment.  The
+   inline direction:ltr / text-align:left attributes that keep technical
+   values LTR are deliberately left to win. */
+
+#main-content .wrapper.fx-page-settings .setting-row input[type="text"],
+#main-content .wrapper.fx-page-settings .setting-row input[type="number"] {
+    width: 100%;
+    min-width: 0;
+    height: var(--input-h);
+    min-height: var(--input-h);
+    padding: 0 var(--space-3);
+    border-radius: var(--control-radius);
+    border: 1px solid var(--border-soft);
+    background: var(--input-bg);
+    color: var(--text-main);
+    font-family: 'Vazirmatn', sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+    text-align: start;
+    outline: none;
+    transition: border-color .14s ease, box-shadow .14s ease, background-color .14s ease;
+}
+
+[data-theme="light"] #main-content .wrapper.fx-page-settings .setting-row input[type="text"],
+[data-theme="light"] #main-content .wrapper.fx-page-settings .setting-row input[type="number"] {
+    border-color: var(--border-mid);
+}
+
+#main-content .wrapper.fx-page-settings .setting-row input[type="text"]::placeholder,
+#main-content .wrapper.fx-page-settings .setting-row input[type="number"]::placeholder {
+    color: var(--text-placeholder);
+}
+
+#main-content .wrapper.fx-page-settings .setting-row input:focus {
+    border-color: var(--accent-ink);
+    box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+#main-content .wrapper.fx-page-settings .setting-row input:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+
+/* ---- 3D-B1.5  Switch ----------------------------------------------------
+   Geometry, knob travel and the RTL knob positions are NOT touched.  Only
+   the fill and knob colours move onto the symmetric contrast contract, and
+   a focus ring is added because the checkbox itself is visually hidden. */
+
+#main-content .wrapper.fx-page-settings .switch input:checked + .switch__slot {
+    background: var(--control-solid);
+    border-color: var(--control-solid);
+}
+
+#main-content .wrapper.fx-page-settings .switch input:checked + .switch__slot::before {
+    background: var(--control-on-solid);
+}
+
+#main-content .wrapper.fx-page-settings .switch input:focus-visible + .switch__slot {
+    box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+
+/* ---- 3D-B1.6  Alerts ----------------------------------------------------
+   --color-success / --color-danger / --color-warning are declared once, in
+   :root, so their text kept a dark-theme hue in the light theme.  The
+   --sem-*-fg / --sem-*-bg pair is theme-aware and was measured in Stage 2D
+   to clear 4.5:1 in both themes. */
+
+#main-content .wrapper.fx-page-settings .alert {
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    gap: var(--icon-gap);
+    font-size: 13px;
+    line-height: 1.7;
+    align-items: flex-start;
+    margin-bottom: var(--gap-section);
+}
+
+#main-content .wrapper.fx-page-settings .alert-success {
+    background: var(--sem-success-bg);
+    border: 1px solid var(--sem-success-fg);
+    color: var(--sem-success-fg);
+}
+
+#main-content .wrapper.fx-page-settings .alert-warning {
+    background: var(--sem-warning-bg);
+    border: 1px solid var(--sem-warning-fg);
+    color: var(--sem-warning-fg);
+}
+
+#main-content .wrapper.fx-page-settings .alert-danger {
+    background: var(--sem-danger-bg);
+    border: 1px solid var(--sem-danger-fg);
+    color: var(--sem-danger-fg);
+}
+
+#main-content .wrapper.fx-page-settings .alert-info {
+    background: var(--sem-info-bg);
+    border: 1px solid var(--sem-info-fg);
+    color: var(--sem-info-fg);
+}
+
+/* The informational note sits between the sections and the action bar. */
+#main-content .wrapper.fx-page-settings .setting-grid + .alert {
+    margin-top: var(--gap-section);
+    margin-bottom: 0;
+}
+
+
+/* ---- 3D-B1.7  Action bar ------------------------------------------------
+   Sticky behaviour is unchanged; the backdrop is re-pointed at the page
+   background token so it blends with the surface it floats over. */
+
+/* ---- Receipts page (panel/receipts.php) --------------------------------
+   Scoped under .receipt-page so nothing here can bleed into other pages. */
+
+.receipt-page .page-head__title i,
+.receipt-page .page-head__title .svg-icon,
+.receipt-page .page-head__title .page-head__icon {
+    width: 20px !important;
+    height: 20px !important;
+    padding: 4px;
+}
+
+.receipt-page > .page-head {
+    margin-bottom: 28px !important;
+}
+
+.receipt-page .receipt-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-3, 12px);
+    margin-bottom: var(--space-4, 16px);
+}
+
+.receipt-page .receipt-summary-grid > .card + .card {
+    margin-top: 0;
+}
+
+.receipt-page .receipt-summary-card {
+    padding: 14px 16px;
+    min-width: 0;
+}
+
+.receipt-page .receipt-summary-card__label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-secondary, #94a3b8);
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.receipt-page .receipt-summary-card__value {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+#modal-rx-view .receipt-detail-photo-label {
+    margin-top: 16px;
+    padding-top: 11px;
+    border-top: 1px dashed var(--border-soft);
+}
+
+#modal-rx-view .receipt-detail-photo {
+    margin-top: 8px;
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    background: var(--surface-2);
+    padding: 8px;
+    text-align: center;
+}
+
+#modal-rx-view .receipt-detail-photo img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+    margin: 0 auto;
+    cursor: zoom-in;
+}
+
+#modal-rx-view .receipt-detail-photo--empty,
+#modal-rx-view .receipt-detail-photo__fallback {
+    color: var(--text-muted);
+    font-size: 12.5px;
+    padding: 18px 8px;
+}
+
+#modal-rx-photo-preview .modal-box.receipt-photo-preview-box {
+    max-width: min(720px, 96vw);
+}
+
+#modal-rx-photo-preview .receipt-photo-preview-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px !important;
+}
+
+#modal-rx-photo-preview .receipt-photo-preview-body img {
+    max-width: 100%;
+    max-height: calc(92vh - 90px);
+    height: auto;
+    width: auto;
+    border-radius: 8px;
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .receipt-page .receipt-summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    #modal-rx-photo-preview .modal-box.receipt-photo-preview-box {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .receipt-page .receipt-summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+#main-content .wrapper.fx-page-settings .save-bar {
+    margin-top: var(--gap-section);
+    padding: var(--space-4) 0;
+    gap: var(--space-3);
+    background: linear-gradient(180deg, transparent, var(--bg-body) 45%);
+}

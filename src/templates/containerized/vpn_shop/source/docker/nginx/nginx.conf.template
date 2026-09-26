@@ -1,0 +1,72 @@
+map $status $faoxima_loggable {
+    ~^[0-4] 0;
+    default 1;
+}
+
+server {
+    listen 80;
+    server_name ${DOMAIN};
+    server_tokens off;
+
+    access_log /var/log/nginx/access.log main if=$faoxima_loggable;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${DOMAIN};
+    server_tokens off;
+    index index.php;
+
+    # Security headers.  Declared at server level so they apply to every
+    # response that does not set its own add_header.  Note: nginx does NOT
+    # inherit add_header into a location that declares its own, so the
+    # static-asset locations below (which set Cache-Control) opt out.
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+
+    client_max_body_size 116M;
+    keepalive_timeout 65s;
+    gzip on;
+    gzip_types application/json text/plain text/css application/javascript;
+
+    access_log /var/log/nginx/access.log main if=$faoxima_loggable;
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+        return 404;
+    }
+
+    location /phpmyadmin/ {
+        allow 127.0.0.1;
+        allow ::1;
+        allow 10.0.0.0/8;
+        allow 172.16.0.0/12;
+        allow 192.168.0.0/16;
+        deny all;
+
+        proxy_pass http://phpmyadmin:80/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    include /etc/nginx/conf.d/bots/*.conf;
+
+    location / {
+        return 404;
+    }
+}
+

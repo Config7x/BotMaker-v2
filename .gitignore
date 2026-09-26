@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment — never commit real secrets
+.env
+.env.local
+*.env
+!*.env.example
+
+# Databases & runtime data
+*.db
+*.sqlite
+*.sqlite3
+data/
+logs/
+*.log
+
+# Custom-source uploads & sandboxes
+uploads/
+sandbox/
+tmp/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
