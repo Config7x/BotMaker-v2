@@ -18,6 +18,7 @@ const { registry } = require('./templates/registry');
 const lifecycle = require('./lifecycle');
 const customsource = require('./customsource');
 const { realClock } = require('./clock');
+const { createMonitoring } = require('./monitoring');
 
 /** Acquire a single-instance lock; exits if another process holds it. */
 function acquireLock(lockPath) {
@@ -47,6 +48,7 @@ function start(opts = {}) {
 
   const db = createDb(cfg.DB_PATH);
   const clock = opts.clock || realClock();
+  const monitoring = opts.monitoring || createMonitoring();
   const isMock = !!opts.mockTelegram;
   const mockLog = opts.mockLog || [];
 
@@ -64,7 +66,7 @@ function start(opts = {}) {
   }
 
   const app = createWebhookApp({
-    db, cfg, registry, apiFor,
+    db, cfg, registry, apiFor, monitoring,
     onSecurityAlert: ({ projectId, sharedSecret }) => customsource.handleSecurityAlert(
       db,
       {
@@ -89,11 +91,13 @@ function start(opts = {}) {
     while (polling) {
       try {
         const r = await controlApi.getUpdates(offset);
+        monitoring.markControlSuccess();
         for (const u of r.result || []) {
           offset = Math.max(offset, (u.update_id || 0) + 1);
           try { await controlBot.processUpdate(u); } catch (err) { console.error('[control] handler error:', err.message); }
         }
       } catch (err) {
+        monitoring.markControlError(err);
         console.error('[control] poll error:', err.message);
         await new Promise((res) => setTimeout(res, 3000));
       }
@@ -103,13 +107,18 @@ function start(opts = {}) {
   // lifecycle scheduler: demo warnings/grace/deletion + auto-renewals
   function scheduleLifecycle(intervalMs = 30000) {
     return setInterval(() => {
+      const started = Date.now();
       lifecycle.tick(db, { apiFor, publicUrl: cfg.PUBLIC_URL }, clock.now())
-        .catch((e) => console.error('[lifecycle] tick error:', e.message));
+        .then(() => monitoring.markLifecycleSuccess(Date.now() - started))
+        .catch((e) => {
+          monitoring.markLifecycleError(e, Date.now() - started);
+          console.error('[lifecycle] tick error:', e.message);
+        });
     }, intervalMs);
   }
 
   return {
-    cfg, db, controlBot, controlApi, app, apiFor, makeApi,
+    cfg, db, controlBot, controlApi, app, apiFor, makeApi, monitoring,
     startHttp, pollLoop, scheduleLifecycle,
     stop() { polling = false; if (httpServer) httpServer.close(); }
   };

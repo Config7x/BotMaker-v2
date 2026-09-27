@@ -1,22 +1,61 @@
 'use strict';
 
 const express = require('express');
+const { createMonitoring } = require('./monitoring');
+
+function hasMetricsAccess(req, token) {
+  if (!token) return false;
+  const header = req.get('X-Metrics-Token') || '';
+  const auth = req.get('Authorization') || '';
+  return header === token || auth === `Bearer ${token}`;
+}
 
 /**
- * Central webhook dispatcher: single Express endpoint. Every created bot's
- * Telegram webhook points to POST /webhook/:secretToken. Verifies the
- * X-Telegram-Bot-Api-Secret-Token header, decrypts the BotFather token,
- * loads the template module from the STATIC registry (no dynamic code), and
- * invokes template.handle({ update, bot, api, db }).
- * Also exposes POST /internal/security-alert (Falco watchdog, shared secret)
- * and GET /healthz.
+ * Central webhook dispatcher plus operational endpoints:
+ *   GET /healthz  - cheap liveness check, never depends on Telegram
+ *   GET /readyz    - database/config readiness, 503 when not ready
+ *   GET /metrics   - Prometheus text format, protected by METRICS_TOKEN
  */
 function createWebhookApp(deps) {
   const { db, cfg, registry, apiFor, onSecurityAlert } = deps;
+  const monitoring = deps.monitoring || createMonitoring();
   const app = express();
+
+  app.use((req, res, next) => {
+    const started = process.hrtime.bigint();
+    res.on('finish', () => {
+      const durationMs = Number(process.hrtime.bigint() - started) / 1e6;
+      monitoring.recordHttp({ method: req.method, path: req.path, statusCode: res.statusCode, durationMs });
+    });
+    next();
+  });
   app.use(express.json({ limit: '2mb' }));
 
-  app.get('/healthz', (_req, res) => res.json({ ok: true, name: 'botmaker-v2' }));
+  app.get('/healthz', (_req, res) => {
+    const snapshot = monitoring.snapshot({ db, cfg });
+    // Liveness answers whether the Node process and HTTP server are alive.
+    // Dependency failures belong to /readyz, not this endpoint.
+    res.status(200).json({
+      ok: true,
+      status: 'alive',
+      service: snapshot.service,
+      version: snapshot.version,
+      uptime_seconds: snapshot.uptime_seconds,
+      timestamp: snapshot.timestamp
+    });
+  });
+
+  app.get('/readyz', (_req, res) => {
+    const snapshot = monitoring.snapshot({ db, cfg });
+    res.status(snapshot.ok ? 200 : 503).json(snapshot);
+  });
+
+  app.get('/metrics', (req, res) => {
+    if (!hasMetricsAccess(req, cfg?.METRICS_TOKEN)) {
+      return res.status(cfg?.METRICS_TOKEN ? 401 : 404).type('text/plain').send('metrics unavailable\n');
+    }
+    return res.type('text/plain; version=0.0.4').send(monitoring.metrics({ db, cfg }));
+  });
 
   app.post('/webhook/:secretToken', async (req, res) => {
     try {
@@ -27,10 +66,8 @@ function createWebhookApp(deps) {
         return res.status(403).json({ ok: false, error: 'forbidden' });
       }
       if (bot.status !== 'active') {
-        return res.status(200).json({ ok: true, skipped: bot.status }); // grace/paused: no responses
+        return res.status(200).json({ ok: true, skipped: bot.status });
       }
-      // containerized templates (§3.10-11) run their own bot inside a gVisor
-      // container — they never point a webhook at this platform dispatcher.
       if (bot.config && bot.config.containerized) {
         return res.status(200).json({ ok: true, skipped: 'containerized' });
       }
@@ -41,7 +78,6 @@ function createWebhookApp(deps) {
       await template.handle({ update: req.body, bot, api, db: store });
       return res.json({ ok: true });
     } catch (err) {
-      // never log the token; log bot id only
       console.error('[webhook] handler error:', err.message);
       return res.status(200).json({ ok: true, handled: false });
     }
@@ -58,4 +94,4 @@ function createWebhookApp(deps) {
   return app;
 }
 
-module.exports = { createWebhookApp };
+module.exports = { createWebhookApp, hasMetricsAccess };

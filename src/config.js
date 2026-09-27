@@ -40,6 +40,7 @@ function loadConfig(envPath) {
     DB_PATH: getStr('DB_PATH', path.join(process.cwd(), 'data', 'botmaker.db')),
     OWNER_TELEGRAM_ID: getStr('OWNER_TELEGRAM_ID', ''),
     SECURITY_ALERT_SECRET: getStr('SECURITY_ALERT_SECRET'),
+    METRICS_TOKEN: getStr('METRICS_TOKEN'),
     MOCK_TELEGRAM: getBool('MOCK_TELEGRAM', false),
     CUSTOM_SOURCE_PRICE: getInt('CUSTOM_SOURCE_PRICE', 300000),
     CUSTOM_SOURCES_DIR: getStr('CUSTOM_SOURCES_DIR', path.join(process.cwd(), 'custom_sources')),

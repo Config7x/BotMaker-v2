@@ -14,6 +14,7 @@
 - [دامنه، TLS و وب‌هوک](#دامنه-tls-و-وبهوک)
 - [Docker و gVisor](#docker-و-gvisor)
 - [عملیات روزمره](#عملیات-روزمره)
+- [مانیتورینگ و Health Check](#مانیتورینگ-و-health-check)
 - [به‌روزرسانی و rollback](#بهروزرسانی-و-rollback)
 - [بکاپ و بازیابی](#بکاپ-و-بازیابی)
 - [عیب‌یابی](#عیبیابی)
@@ -137,7 +138,7 @@ curl -fsS http://127.0.0.1:8443/healthz
 پاسخ سالم مشابه زیر است:
 
 ```json
-{"ok":true,"name":"botmaker-v2"}
+{"ok":true,"status":"alive","service":"botmaker-v2","version":"2.0.0","uptime_seconds":42,"timestamp":"2026-09-27T12:00:00.000Z"}
 ```
 
 مشاهدهٔ لاگ:
@@ -161,6 +162,7 @@ sudo journalctl -u botmaker-v2 -f
 | `PORT` | خیر | پورت داخلی Express؛ پیش‌فرض `8443` |
 | `DB_PATH` | خیر | مسیر SQLite؛ پیش‌فرض `./data/botmaker.db` |
 | `SECURITY_ALERT_SECRET` | بله | راز مشترک هشدارهای امنیتی |
+| `METRICS_TOKEN` | توصیه‌شده | توکن endpoint خصوصی Prometheus؛ اگر خالی باشد `/metrics` غیرفعال است |
 | `CUSTOM_SOURCE_PRICE` | خیر | قیمت سرویس سورس سفارشی به تومان |
 | `CUSTOM_SOURCES_DIR` | خیر | محل نگهداری سورس‌های سفارشی |
 | `GVISOR_AVAILABLE` | خیر | فقط پس از نصب و شناسایی `runsc` روی `true` قرار گیرد |
@@ -269,6 +271,61 @@ sudo du -sh /opt/botmaker-v2/data /opt/botmaker-v2/custom_sources
 ```
 
 فقط یک process باید long polling ربات کنترل را اجرا کند. اجرای هم‌زمان `npm start` در کنار systemd باعث خطای Telegram 409 می‌شود.
+
+## مانیتورینگ و Health Check
+
+برنامه سه endpoint عملیاتی دارد:
+
+| Endpoint | کاربرد | وضعیت خطا |
+|---|---|---|
+| `GET /healthz` | liveness؛ فقط زنده‌بودن process و HTTP را بررسی می‌کند | همیشه `200` تا orchestrator بتواند process را restart کند |
+| `GET /readyz` | readiness؛ دیتابیس و پیکربندی را بررسی می‌کند و آخرین وضعیت control bot و lifecycle را نشان می‌دهد | در صورت آماده‌نبودن `503` |
+| `GET /metrics` | سنجه‌های Prometheus با counterهای HTTP، polling و lifecycle | بدون توکن `404` و با توکن اشتباه `401` |
+
+`/healthz` عمداً به Telegram وابسته نیست؛ قطع موقت Telegram نباید باعث شود health check، process زنده را مرده اعلام کند. در مقابل، `/readyz` برای load balancer و deploy باید استفاده شود.
+
+بررسی دستی:
+
+```bash
+curl -fsS http://127.0.0.1:8443/healthz | jq
+curl -i http://127.0.0.1:8443/readyz
+curl -i -H "X-Metrics-Token: $METRICS_TOKEN" http://127.0.0.1:8443/metrics
+```
+
+برای Prometheus، endpoint را فقط روی شبکهٔ داخلی یا از طریق allowlist در reverse proxy منتشر کنید؛ توکن را در URL query قرار ندهید چون ممکن است در access log ذخیره شود. نمونهٔ scrape:
+
+```yaml
+scrape_configs:
+  - job_name: botmaker
+    scheme: https
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['bots.example.com']
+    authorization:
+      type: Bearer
+      credentials: 'REPLACE_WITH_METRICS_TOKEN'
+```
+
+سنجه‌های اصلی شامل `botmaker_ready`، `botmaker_uptime_seconds`، تعداد درخواست‌ها و خطاهای HTTP، موفقیت/خطای polling ربات کنترل و اجرا/خطای scheduler چرخهٔ عمر هستند. هیچ متن پیام، توکن یا secret در metrics ذخیره نمی‌شود.
+
+برای alerting اولیه می‌توانید این قواعد را در Prometheus/Alertmanager تعریف کنید:
+
+```yaml
+groups:
+  - name: botmaker
+    rules:
+      - alert: BotMakerNotReady
+        expr: botmaker_ready == 0
+        for: 5m
+      - alert: BotMakerControlPollingErrors
+        expr: increase(botmaker_control_poll_errors_total[10m]) > 3
+        for: 2m
+      - alert: BotMakerLifecycleErrors
+        expr: increase(botmaker_lifecycle_errors_total[15m]) > 0
+        for: 5m
+```
+
+در systemd، `Restart=always` خرابی process را جبران می‌کند؛ `/readyz` و metrics برای تشخیص خرابی dependency، خطای polling و خطای scheduler هستند و جایگزین لاگ و alerting نمی‌شوند.
 
 ## به‌روزرسانی و rollback
 
