@@ -1,164 +1,392 @@
 # BotMaker v2
 
-[![Node.js 20](https://img.shields.io/badge/Node.js-20-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Tests](https://img.shields.io/badge/tests-17%20passing-brightgreen)](#)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Database: SQLite](https://img.shields.io/badge/DB-SQLite%20(better--sqlite3)-003B57?logo=sqlite&logoColor=white)](#)
-[![Telegram](https://img.shields.io/badge/Telegram-Bot%20API-26A5E4?logo=telegram&logoColor=white)](https://core.telegram.org/bots/api)
-[![Persian](https://img.shields.io/badge/lang-%D9%81%D8%A7%D8%B1%D8%B3%DB%8C-red)](#)
+پلتفرم چندمستأجری ساخت و مدیریت ربات تلگرام با Node.js، Express و SQLite. کاربر نهایی از طریق یک **ربات کنترل**، ربات خودش را می‌سازد و مدیریت می‌کند.
 
-پلتفرم چند-مستأجری (multi-tenant) ساخت ربات تلگرام — کاملاً فارسی. کاربر نهایی فقط با یک «ربات کنترل» در تلگرام گفتگو می‌کند و بدون حتی یک خط کدنویسی، ربات خود را می‌سازد، پولی می‌کند و مدیریت می‌کند. اجرا روی یک VPS لینوکسی تکی با Node.js 20 و SQLite.
+> **وضعیت فعلی:** ۲۸ تست پروژه با موفقیت عبور می‌کنند. برای اجرای تست‌ها از `npm test` استفاده کنید؛ این دستور به‌صورت مستقیم فایل‌های `test/*.test.js` را اجرا می‌کند.
 
-> تمام منطق کسب‌وکار تست‌شده است: `node --test test/` — ۱۷ تست شامل کیف پول، چرخه دقیق دمو با ساعت تزریقی (بدون sleep واقعی)، اقدامات پنل ربات، جریان FAQ-ثم-تیکت پشتیبانی و گیت‌های سرویس سورس سفارشی.
+## فهرست مطالب
 
-## معماری
+- [قابلیت‌ها و معماری](#قابلیت‌ها-و-معماری)
+- [پیش‌نیازها](#پیش‌نیازها)
+- [اجرای توسعه‌ای](#اجرای-توسعه‌ای)
+- [استقرار روی Ubuntu با systemd](#استقرار-روی-ubuntu-با-systemd)
+- [پیکربندی محیطی](#پیکربندی-محیطی)
+- [دامنه، TLS و وب‌هوک](#دامنه-tls-و-وبهوک)
+- [Docker و gVisor](#docker-و-gvisor)
+- [عملیات روزمره](#عملیات-روزمره)
+- [به‌روزرسانی و rollback](#بهروزرسانی-و-rollback)
+- [بکاپ و بازیابی](#بکاپ-و-بازیابی)
+- [عیب‌یابی](#عیبیابی)
+- [امنیت](#امنیت)
 
-```
-src/
-├── index.js        نقطه ورود: وب‌سرور + حلقه getUpdates ربات کنترل + زمان‌بند چرخه عمر
-├── config.js       خواندن .env و اعتبارسنجی
-├── db.js           SQLite (better-sqlite3): اسکیما + مهاجرت idempotent + CRUD
-├── cryptoutil.js   رمزنگاری AES-256-GCM توکن‌ها (توکن خام هرگز ذخیره/لاگ نمی‌شود)
-├── telegram.js     کلاینت HTTP بوت API با حالت MOCK برای تست‌ها
-├── webhook.js      دیسپچر مرکزی Express + اندپوینت هشدار امنیتی داخلی
-├── admin.js        ربات کنترل: منوها، جریان ساخت ربات، پنل‌ها، کنسول مدیریت
-├── wallet.js       کیف پول: شارژ، کسر، خرید/تمدید، تمدید خودکار
-├── lifecycle.js    چرخه دمو ۶۰ دقیقه (هشدار ۵۰ → grace ۶۰ → حذف ۳۶۰)
-├── support.js      FAQ-first سپس تیکت
-├── customsource.js گیت پرداخت، اعتبارسنجی، اسکن امنیتی→باگ، تأیید ادمین، sandbox، Falco
-├── clock.js        ساعت تزریقی (تست‌ها بدون زمان واقعی)
-├── utils/          escapeHtml + محافظت SSRF
-└── templates/      رجیستری ایستای ۱۱ قالب: ۹ قالب سبک درون-پروسه + ۲ قالب کانتینری (§3.10-11)
-```
+## قابلیت‌ها و معماری
 
-### ۹ قالب
-Shop/کاتالوگ • آپلودر فایل (۲۰/۵۰MB صادقانه) • پست‌ساز (رنگ دکمه فقط ایموجی 🔴🟢🔵🟡⚪) • مدیر کانال (بدون ادعای مدیریت بن) • کوئیز (امتیاز + لیدربورد) • دانلودر HTTPS مستقیم • **پست‌ساز جامع** (پارس خط‌به‌خط چندکانفیگ، کپی بومی CopyTextButton با سقف ۲۵۶ کاراکتر و فروش هش برای payloads بلند، ارسال ovpn/conf بدون پارس، برندینگ بلاک‌کوت، پیش‌نمایش + تأیید) • **دانلودر چندپلتفرمه** (Instagram/TikTok/YouTube/SoundCloud/Twitter، منوی کیفیت مطابق سورس اصلی multidl، SSRF) • **دانلودر موزیک** (جستجو، force-join، علاقه‌مندی، دستورات مالک — پورت سورس اصلی music_bot)
+- ربات کنترل با long polling؛ فقط **یک نمونهٔ فعال** مجاز است تا خطای Telegram 409 رخ ندهد.
+- وب‌سرور Express برای health check، وب‌هوک ربات‌ها و هشدار امنیتی داخلی.
+- SQLite با `better-sqlite3` و مهاجرت idempotent.
+- رمزنگاری توکن‌ها با AES-256-GCM.
+- چرخهٔ دمو: هشدار دقیقهٔ ۵۰، ورود به grace در دقیقهٔ ۶۰ و انقضا در دقیقهٔ ۳۶۰.
+- قالب‌های درون‌پروسه و قالب‌های کانتینری Pro/VIP.
+- اجرای سورس سفارشی فقط با gVisor و به‌صورت fail-closed.
+- محافظت SSRF برای دانلودهای HTTP/HTTPS و escape کردن متن‌های HTML.
 
-### ۲ قالب کانتینری (Pro/VIP only — بدون دمو)
-• **#۱۰ فروشگاه اشتراک VPN** (PHP + MySQL داخل کانتینر، مینی‌اپ تلگرام، کرون تمدید) — ویزارد ساخت: نوع پنل (Marzban/PasarGuard/WGDashboard/Remnawave/x-ui) → آدرس پنل → کاربر → رمز (AES-256-GCM). مبتنی بر فورک باز-متن GPL-3.0 پروژه Faoxima (LICENSE + NOTICE.md حفظ شده).
-• **#۱۱ اسکرپر و پستر خودکار کانفیگ** (Python + Telethon) — اول افشای ریسک مسدودی اکانت شخصی (باید صریحاً بپذیرید)، سپس لاگین شماره → OTP → رمز دوم اختیاری؛ رشته سشن رمزنگاری‌شده ذخیره می‌شود؛ کانال‌های منبع از پنل قابل افزودن/حذف‌اند.
+ساختار مهم پروژه:
 
-هر نمونه ربات کانتینری در **کانتینر اختصاصی خودش** با همان پشته امنیتی سورس سفارشی اجرا می‌شود (gVisor/runsc + cap-drop=ALL + no-new-privileges + read-only rootfs + ولوم دیتا + محدودیت منابع)، اما **بدون** اسکن هوش مصنوعی/تأیید ادمین چون سورس ثابت و بازبینی‌شده است. بدون gVisor راه‌اندازی fail-closed است. این ربات‌ها از وب‌هوک پلتفرم استفاده نمی‌کنند؛ توقف/فعال‌سازی یعنی stop/start کانتینر و حذف یعنی نابود کانتینر + ولوم دیتا.
-
-## چرخه دمو (دقیقاً طبق مشخصات)
-- دقیقه ۵۰: هشدار یک‌باره
-- دقیقه ۶۰: حالت grace (حذف وب‌هوک، داده سالم) + اطلاع ۳۰۰ دقیقه‌ای
-- دقیقه ۳۶۰ بدون ارتقا: حذف دائمی + اطلاع نهایی
-- ارتقا در هر پنجره → فعال‌سازی فوری روی پلن پرداختی
-- هر نوع قالب فقط **یک بار** دمو برای هر کاربر (بقیه قالب‌ها همچنان واجد شرایط)
-
-## نصب روی Ubuntu VPS (تکی و idempotent)
-
-```bash
-sudo bash install.sh
-nano /opt/botmaker-v2/.env     # مقادیر را پر کنید
-sudo systemctl restart botmaker-v2
+```text
+src/index.js                         نقطهٔ ورود
+src/config.js                        بارگذاری و اعتبارسنجی .env
+src/db.js                            SQLite، schema و عملیات داده
+src/admin.js                         ربات کنترل و پنل مدیریت
+src/webhook.js                       Express، healthz و webhook
+src/lifecycle.js                     چرخهٔ دمو و تمدید خودکار
+src/customsource.js                  گیت پرداخت و اسکن سورس سفارشی
+src/templates/                       رجیستری قالب‌ها
+src/templates/containerized/         سورس قالب‌های کانتینری
+src/utils/                           ابزار HTML و SSRF
+test/                                تست‌های پروژه
+install.sh                           نصب Ubuntu و سرویس systemd
+.env.example                         نمونهٔ پیکربندی
 ```
 
-نصب‌کننده Node 20، وابستگی‌ها و سرویس systemd را می‌سازد؛ اگر Docker و gVisor (`runsc`) موجود باشد `GVISOR_AVAILABLE=true` می‌گذارد و **ایمیج دو قالب کانتینری را هم می‌سازد** (`botmaker/vpn_shop` و `botmaker/config_scraper`)؛ در غیر این صورت اجرای سورس سفارشی و قالب‌های کانتینری **fail-closed** باقی می‌مانند. برای قالب #۱۱ مقادیر `TELETHON_API_ID` و `TELETHON_API_HASH` را از my.telegram.org در `.env` بگذارید (هرگز از کپی رفرنس).
+## پیش‌نیازها
 
-### متغیرهای محیطی (`.env.example`)
-`CONTROL_BOT_TOKEN` (ربات کنترل از BotFather) • `ENCRYPTION_KEY` (۶۴ hex توصیه: `openssl rand -hex 32`) • `PUBLIC_URL` (دامنه/آی‌پی عمومی) • `PORT` • `DB_PATH` • `OWNER_TELEGRAM_ID` (مالک پلتفرم) • `SECURITY_ALERT_SECRET` (Falco) • `CUSTOM_SOURCE_PRICE` • `GVISOR_AVAILABLE`
+### توسعه و تست
 
-### مدیریت سرویس
-```bash
-systemctl status botmaker-v2
-journalctl -u botmaker-v2 -f
-curl http://localhost:8443/healthz
-```
-تکی‌بودن پروسه با lock-file تضمین می‌شود (خطای 409 تلگرام از دو instance رخ نمی‌دهد).
+- Node.js **20 یا بالاتر**
+- npm
+- Python و ابزارهای build در صورت نبودن binary آمادهٔ `better-sqlite3`
 
-## سورس سفارشی (§6، پرمیوم)
-ترتیب اجباری: **گیت پرداخت →** اعتبارسنجی ساختار (سقف ZIP/فایل/نسبت، manifest) → **اسکن امنیتی** (الگوهای استاتیک + بازبینی AI) → اسکن باگ (فقط برای گذرنده‌های امنیتی) → **تأیید انسانی ادمین** → اجرا فقط در کانتینر hardened با gVisor:
-`--runtime=runsc --network=none --read-only --cap-drop=ALL --security-opt=no-new-privileges --user 1000:1000` + سقف CPU/RAM/PID.
-خطای زمان اجرا: source-caused → به کاربر برای اصلاح خودش؛ host-caused → فقط با تأیید کاربر و fix بدون پیامد امنیتی خودکار؛ هر fix با پیامد امنیتی → escalation مستقیم به مالک. هشدار Falco با راز مشترک → kill + پاک‌سازی سورس + علامت‌گذاری + اطلاع دوطرفه.
+### استقرار تولیدی
 
-## امنیت
-- توکن‌های BotFather فقط رمزنگاری‌شده AES-256-GCM ذخیره می‌شوند؛ هرگز لاگ نمی‌شوند
-- تمام متن‌های کاربر قبل از ارسال با `parse_mode:HTML` → escape می‌شوند
-- `style` دکمه‌ها فقط `primary` (پاک‌سازی خودکار؛ success/destructive خطای 400 می‌دهد)
-- بدون eval/Function/کد داینامیک در موتور قالب؛ رجیستری کاملاً ایستا
-- SSRF: بلاک شبکه‌های خصوصی + DNS-pinning هنگام دانلود
-- محدودیت‌های حجمی صادقانه (۲۰MB دانلود / ۵۰MB ارجاع Bot API)
-
-## تست
-```bash
-npm test   # node --test test/  (17 تست)
-```
-
-## نکات عملیاتی
-- شارژ کیف پول فعلاً دستی/کریپتویی است: کاربر درخواست مبلغ می‌دهد، ادمین از کنسول تأیید می‌کند (مبنای آماده برای اتصال درگاه کریپتویی)
-- تمدید خودکار: موجودی کافی → تمدید بی‌صدا + اطلاع؛ ناکافی → توقف + دلیل با کمبود دقیق
-- بدون gVisor، پروژه‌های سفارشی اجرا نمی‌شوند (این رفتار عمدی است)
-
-
-## استقرار روی سرور (Deployment)
-
-### پیش‌نیازها
-- VPS با Ubuntu 22.04/24.04 و دسترسی sudo (حداقل ۱GB RAM)
-- دامنه یا زیردامنه با رکورد A به IP سرور (مثلاً `bots.yourdomain.com`) + گواهی TLS (ترجیحاً با Nginx/Caddy به‌عنوان reverse proxy)
+- Ubuntu 22.04 یا 24.04
+- دسترسی `sudo`
+- حداقل ۱ گیگابایت RAM؛ برای قالب‌های کانتینری و build ایمیج‌ها RAM بیشتری توصیه می‌شود.
+- دامنه یا زیردامنه با رکورد A به IP سرور
 - توکن ربات کنترل از [@BotFather](https://t.me/BotFather)
+- TLS معتبر برای استفادهٔ تولیدی از وب‌هوک‌ها
 
-### گام ۱ — نصب
+## اجرای توسعه‌ای
+
 ```bash
-sudo apt update && sudo apt install -y git
 git clone https://github.com/Config7x/BotMaker-v2.git
 cd BotMaker-v2
-sudo bash install.sh          # idempotent؛ Node 20، systemd و سرویس را آماده می‌کند
+
+cp .env.example .env
+openssl rand -hex 32
+# مقدار تولیدشده را در ENCRYPTION_KEY قرار دهید.
+# CONTROL_BOT_TOKEN، OWNER_TELEGRAM_ID و SECURITY_ALERT_SECRET را نیز پر کنید.
+
+npm install
+npm test
 ```
 
-### گام ۲ — پیکربندی
+برای اجرای محلی، `PUBLIC_URL` را روی آدرس قابل‌دسترسی تنظیم کنید. اگر فقط تست واحد انجام می‌دهید، لازم نیست به Telegram واقعی متصل شوید. هرگز توکن واقعی یا کلید رمزنگاری را commit نکنید.
+
+اجرای برنامه:
+
+```bash
+npm start
+# یا:
+node src/index.js
+```
+
+در حالت توسعه، قبل از اجرا باید `.env` کامل باشد؛ در غیر این صورت برنامه عمداً متوقف می‌شود.
+
+## استقرار روی Ubuntu با systemd
+
+### ۱. دریافت کد و نصب
+
+```bash
+sudo apt update
+sudo apt install -y git curl build-essential python3
+
+git clone https://github.com/Config7x/BotMaker-v2.git /opt/botmaker-v2-src
+cd /opt/botmaker-v2-src
+sudo bash install.sh
+```
+
+`install.sh` این کارها را انجام می‌دهد:
+
+1. Node.js 20 یا نسخهٔ جدیدتر را بررسی/نصب می‌کند.
+2. کد را در `/opt/botmaker-v2` کپی می‌کند و `.env` موجود را حفظ می‌کند.
+3. دایرکتوری‌های `data/` و `custom_sources/` را می‌سازد.
+4. وابستگی‌های npm را نصب می‌کند.
+5. در صورت وجود Docker و gVisor، ایمیج‌های قالب‌های کانتینری را build می‌کند.
+6. سرویس `botmaker-v2.service` را در systemd ثبت می‌کند.
+
+### ۲. ساخت و تکمیل `.env`
+
+اگر فایل وجود نداشته باشد، نصب‌کننده آن را از `.env.example` می‌سازد. ابتدا آن را تکمیل کنید:
+
 ```bash
 sudo nano /opt/botmaker-v2/.env
-```
-حداقل این مقادیر را پر کنید:
-| کلید | توضیح |
-|---|---|
-| `CONTROL_BOT_TOKEN` | توکن ربات کنترل از BotFather |
-| `ENCRYPTION_KEY` | `openssl rand -hex 32` |
-| `PUBLIC_URL` | آدرس عمومی سرور (ثبت وب‌هوک ربات‌های کاربران) |
-| `OWNER_TELEGRAM_ID` | آیدی عددی شما (کنسول مدیریت) |
-| `SECURITY_ALERT_SECRET` | راز مشترک اندپوینت هشدار Falco |
-
-برای قالب کانتینری #۱۱ (اسکرپر): `TELETHON_API_ID` و `TELETHON_API_HASH` از [my.telegram.org](https://my.telegram.org).
-
-### گام ۳ — اجرا و بررسی
-```bash
-sudo systemctl start botmaker-v2
-sudo systemctl status botmaker-v2            # باید active (running) باشد
-curl http://localhost:8443/healthz           # پاسخ: {"ok":true,...}
-journalctl -u botmaker-v2 -f                  # دنبال‌کردن لاگ‌ها
+sudo chmod 600 /opt/botmaker-v2/.env
 ```
 
-### قالب‌های کانتینری (اختیاری، فقط Pro/VIP)
-قالب‌های #۱۰ و #۱۱ به Docker + gVisor نیاز دارند و بدون آن **fail-closed** می‌مانند:
+حداقل مقادیر لازم در بخش [پیکربندی محیطی](#پیکربندی-محیطی) توضیح داده شده‌اند.
+
+### ۳. فعال‌سازی سرویس و health check
+
 ```bash
-# نصب Docker + gVisor طبق gvisor.dev، سپس:
-sudo bash install.sh                          # دوباره اجرا؛ ایمیج‌ها را build می‌کند
+sudo systemctl daemon-reload
+sudo systemctl enable --now botmaker-v2
+sudo systemctl status botmaker-v2 --no-pager
+curl -fsS http://127.0.0.1:8443/healthz
 ```
 
-### به‌روزرسانی
+پاسخ سالم مشابه زیر است:
+
+```json
+{"ok":true,"name":"botmaker-v2"}
+```
+
+مشاهدهٔ لاگ:
+
 ```bash
-cd BotMaker-v2 && git pull
-sudo rsync -a --exclude node_modules --exclude .env --exclude data src/ /opt/botmaker-v2/src/
+sudo journalctl -u botmaker-v2 -f
+```
+
+اگر `.env` ناقص باشد، سرویس را فعال نکنید؛ ابتدا خطاهای چاپ‌شده را برطرف کنید.
+
+## پیکربندی محیطی
+
+فایل مرجع: `.env.example`
+
+| متغیر | اجباری | توضیح |
+|---|---:|---|
+| `CONTROL_BOT_TOKEN` | بله | توکن ربات کنترل از BotFather |
+| `OWNER_TELEGRAM_ID` | بله | شناسهٔ عددی مالک برای کنسول مدیریت |
+| `ENCRYPTION_KEY` | بله | کلید AES؛ مقدار پیشنهادی `openssl rand -hex 32` |
+| `PUBLIC_URL` | بله | آدرس عمومی، مانند `https://bots.example.com` |
+| `PORT` | خیر | پورت داخلی Express؛ پیش‌فرض `8443` |
+| `DB_PATH` | خیر | مسیر SQLite؛ پیش‌فرض `./data/botmaker.db` |
+| `SECURITY_ALERT_SECRET` | بله | راز مشترک هشدارهای امنیتی |
+| `CUSTOM_SOURCE_PRICE` | خیر | قیمت سرویس سورس سفارشی به تومان |
+| `CUSTOM_SOURCES_DIR` | خیر | محل نگهداری سورس‌های سفارشی |
+| `GVISOR_AVAILABLE` | خیر | فقط پس از نصب و شناسایی `runsc` روی `true` قرار گیرد |
+| `MOCK_TELEGRAM` | خیر | فقط برای تست؛ در تولید `false` باشد |
+| `TELETHON_API_ID` | فقط قالب اسکرپر | API ID اختصاصی از `my.telegram.org` |
+| `TELETHON_API_HASH` | فقط قالب اسکرپر | API Hash اختصاصی؛ در Git یا چت عمومی قرار نگیرد |
+
+تولید مقادیر تصادفی:
+
+```bash
+openssl rand -hex 32   # ENCRYPTION_KEY
+openssl rand -hex 32   # SECURITY_ALERT_SECRET
+```
+
+**هشدار:** تغییر `ENCRYPTION_KEY` بعد از ذخیرهٔ توکن‌های کاربران، رمزگشایی داده‌های قبلی را ممکن نمی‌کند. قبل از تغییر آن، برنامه و روش migration کلید را طراحی کنید.
+
+## دامنه، TLS و وب‌هوک
+
+برنامه به‌طور معمول روی `127.0.0.1:8443` اجرا می‌شود و بهتر است TLS در reverse proxy terminate شود. نمونهٔ سادهٔ Nginx:
+
+```nginx
+server {
+    listen 80;
+    server_name bots.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name bots.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/bots.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/bots.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8443;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 60s;
+    }
+}
+```
+
+مراحل پیشنهادی:
+
+1. رکورد DNS را ایجاد کنید.
+2. گواهی TLS را با Certbot یا Caddy بگیرید.
+3. `PUBLIC_URL=https://bots.example.com` را در `.env` قرار دهید.
+4. سرویس را restart کنید.
+5. health check و لاگ را بررسی کنید.
+
+```bash
+sudo systemctl restart botmaker-v2
+curl -fsS https://bots.example.com/healthz
+```
+
+وب‌هوک ربات‌های معمولی توسط برنامه روی مسیر `/webhook/:secretToken` مدیریت می‌شود و هدر secret تلگرام را بررسی می‌کند. قالب‌های کانتینری مسیر وب‌هوک خودشان را دارند و از dispatcher درون‌پروسه استفاده نمی‌کنند.
+
+## Docker و gVisor
+
+Docker و gVisor برای موارد زیر ضروری‌اند:
+
+- اجرای سورس سفارشی
+- قالب VPN Shop
+- قالب Config Scraper
+
+بدون `runsc`، رفتار برنامه **fail-closed** است و provision انجام نمی‌شود. بعد از نصب Docker و gVisor، بررسی کنید:
+
+```bash
+docker info --format '{{json .Runtimes}}' | grep runsc
+```
+
+سپس نصب‌کننده را دوباره اجرا کنید تا ایمیج‌ها build و وضعیت `.env` به‌روزرسانی شود:
+
+```bash
+cd /opt/botmaker-v2-src
+sudo bash install.sh
 sudo systemctl restart botmaker-v2
 ```
 
-### بکاپ
+قالب Config Scraper به `TELETHON_API_ID` و `TELETHON_API_HASH` اختصاصی نیاز دارد. احراز هویت حساب شخصی تلگرام ریسک محدودیت دارد و باید قبل از ورود، هشدار داخل ویزارد را صریحاً بپذیرید.
+
+## عملیات روزمره
+
+```bash
+# وضعیت سرویس
+sudo systemctl status botmaker-v2 --no-pager
+
+# شروع، توقف و restart
+sudo systemctl start botmaker-v2
+sudo systemctl stop botmaker-v2
+sudo systemctl restart botmaker-v2
+
+# لاگ زنده و لاگ‌های اخیر
+sudo journalctl -u botmaker-v2 -f
+sudo journalctl -u botmaker-v2 -n 200 --no-pager
+
+# health check محلی
+curl -fsS http://127.0.0.1:8443/healthz
+
+# بررسی فضای دیسک
+sudo du -sh /opt/botmaker-v2/data /opt/botmaker-v2/custom_sources
+```
+
+فقط یک process باید long polling ربات کنترل را اجرا کند. اجرای هم‌زمان `npm start` در کنار systemd باعث خطای Telegram 409 می‌شود.
+
+## به‌روزرسانی و rollback
+
+قبل از به‌روزرسانی از دیتابیس backup بگیرید:
+
 ```bash
 sudo systemctl stop botmaker-v2
-sudo cp /opt/botmaker-v2/data/botmaker.db ~/botmaker-$(date +%F).db
+sudo cp -a /opt/botmaker-v2/data/botmaker.db "/opt/botmaker-v2/data/botmaker.db.$(date +%F-%H%M%S).bak"
 sudo systemctl start botmaker-v2
 ```
-> نکته: بکاپ خودکار روزانه در ایشو #۵ پیشنهاد شده است.
 
-## راه‌اندازی سریع
+به‌روزرسانی پیشنهادی:
 
 ```bash
-cp .env.example .env   # توکن ربات کنترل و کلیدها را پر کنید
-npm install
-npm start               # یا: bash install.sh
-npm test                # اجرای ۱۷ تست
+cd /opt/botmaker-v2-src
+git fetch origin
+git checkout main
+git pull --ff-only origin main
+sudo bash install.sh
+sudo systemctl restart botmaker-v2
+sudo systemctl status botmaker-v2 --no-pager
 ```
 
-نیازمندی‌ها: Node.js ≥ 20، لینوکس (به دلیل Docker/gVisor برای قالب‌های کانتینری).
+نصب‌کننده `.env` و `data/` را حفظ می‌کند. برای rollback:
+
+```bash
+cd /opt/botmaker-v2-src
+git log --oneline -10
+git checkout <KNOWN_GOOD_COMMIT>
+sudo bash install.sh
+sudo systemctl restart botmaker-v2
+```
+
+## بکاپ و بازیابی
+
+بکاپ شامل دیتابیس و secretهاست و باید خارج از همان سرور، به‌صورت رمزنگاری‌شده و با دسترسی محدود نگهداری شود:
+
+```bash
+sudo systemctl stop botmaker-v2
+sudo tar -czf "/root/botmaker-backup-$(date +%F).tar.gz" \
+  -C /opt/botmaker-v2 data .env
+sudo systemctl start botmaker-v2
+sudo chmod 600 /root/botmaker-backup-*.tar.gz
+```
+
+بازیابی:
+
+```bash
+sudo systemctl stop botmaker-v2
+sudo tar -xzf /root/botmaker-backup-YYYY-MM-DD.tar.gz -C /opt/botmaker-v2
+sudo chown -R root:root /opt/botmaker-v2/data
+sudo chmod 600 /opt/botmaker-v2/.env
+sudo systemctl start botmaker-v2
+curl -fsS http://127.0.0.1:8443/healthz
+```
+
+برای دیتابیس SQLite در حال استفاده، توقف سرویس قبل از کپی توصیه می‌شود تا فایل WAL ناقص منتقل نشود.
+
+## عیب‌یابی
+
+### `npm test` خطای پیدا نکردن مسیر `test` می‌دهد
+
+بررسی کنید `package.json` شامل این دستور باشد:
+
+```json
+"test": "node --test test/*.test.js"
+```
+
+### خطای `Could not locate the bindings file` برای better-sqlite3
+
+ابزارهای build را نصب و binding را rebuild کنید:
+
+```bash
+sudo apt install -y build-essential python3
+npm rebuild better-sqlite3 --build-from-source
+npm test
+```
+
+### سرویس بلافاصله متوقف می‌شود
+
+```bash
+sudo journalctl -u botmaker-v2 -n 100 --no-pager
+sudo grep -E '^(CONTROL_BOT_TOKEN|OWNER_TELEGRAM_ID|ENCRYPTION_KEY|PUBLIC_URL|SECURITY_ALERT_SECRET)=' /opt/botmaker-v2/.env
+```
+
+مقادیر placeholder، کلید کوتاه و `PUBLIC_URL` خالی در حالت غیرمصنوعی باعث توقف عمدی برنامه می‌شوند.
+
+### Telegram 409 Conflict
+
+یک process اضافی را متوقف کنید:
+
+```bash
+pgrep -af 'node src/index.js'
+sudo systemctl restart botmaker-v2
+```
+
+### health check کار می‌کند ولی وب‌هوک Telegram نه
+
+- DNS و TLS را بررسی کنید.
+- `PUBLIC_URL` باید با `https://` و دامنهٔ قابل‌دسترسی عمومی تنظیم شده باشد.
+- reverse proxy باید مسیرها و هدرها را عبور دهد.
+- لاگ systemd و لاگ Nginx را هم‌زمان بررسی کنید.
+- در صورت تغییر دامنه، سرویس را restart کنید تا وب‌هوک‌های جدید با URL صحیح ثبت شوند.
+
+### قالب‌های کانتینری در دسترس نیستند
+
+وجود Docker به‌تنهایی کافی نیست؛ `runsc` باید در runtimeهای Docker دیده شود. در نبود gVisor، fail-closed بودن رفتار مورد انتظار و امنیتی است.
+
+## امنیت
+
+- `.env`، دیتابیس و `custom_sources/` را public یا commit نکنید.
+- دسترسی `.env` و backupها را به owner محدود کنید.
+- `ENCRYPTION_KEY` و `SECURITY_ALERT_SECRET` را در password manager یا secret manager نگهداری کنید.
+- پورت داخلی `8443` را عمومی نکنید؛ دسترسی عمومی را از reverse proxy با TLS عبور دهید.
+- برای قالب‌های کانتینری و سورس سفارشی، gVisor را نصب و Falco را در محیط تولید فعال کنید.
+- لاگ‌های عمومی و issueها نباید شامل توکن Telegram، API Hash، شمارهٔ تلفن یا secret باشند.
+- قبل از انتشار، `npm audit` و بررسی dependencyها را انجام دهید.
+
+## مجوز
+
+این پروژه با مجوز MIT منتشر شده است. برای اجزای شخص ثالث، فایل‌های `LICENSE` و `NOTICE` همان جزء را نیز رعایت کنید.

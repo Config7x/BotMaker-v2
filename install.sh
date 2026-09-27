@@ -20,7 +20,7 @@ else
 fi
 
 # ---------------------------------------------------------------- basics
-for pkg in unzip curl ca-certificates; do
+for pkg in unzip curl ca-certificates rsync; do
   if ! dpkg -s "$pkg" >/dev/null 2>&1; then
     echo "==> Installing $pkg"
     apt-get install -y "$pkg"
@@ -35,6 +35,7 @@ rsync -a --exclude node_modules --exclude .env --exclude data \
   "$(dirname "$0")/package-lock.json" "$(dirname "$0")/README.md" \
   "$(dirname "$0")/.env.example" "$APP_DIR/" 2>/dev/null \
   || cp -r "$(dirname "$0")/src" "$(dirname "$0")/test" "$(dirname "$0")/package.json" \
+     "$(dirname "$0")/package-lock.json" "$(dirname "$0")/README.md" \
      "$(dirname "$0")/.env.example" "$APP_DIR/"
 
 cd "$APP_DIR"
