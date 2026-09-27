@@ -133,3 +133,12 @@ test('panel: renew with insufficient balance shows exact shortfall + top-up butt
   assert.ok(/۲۰۰٬۰۰۰|200,000/.test(r.payload.text), 'amount shown');
   assert.ok(r.payload.reply_markup.inline_keyboard.some((row) => row.some((b) => (b.callback_data || '') === 'wallet:topup')));
 });
+
+test('panel: services menu exposes personal and custom bot options', async () => {
+  const h = makeHarness();
+  const r = await msgText(h, USER, '🧰 خدمات و ربات‌های ویژه');
+  const buttons = r.payload.reply_markup.inline_keyboard.flat();
+  assert.ok(buttons.some((b) => b.callback_data === 'services:config_scraper'));
+  assert.ok(buttons.some((b) => b.callback_data === 'services:custom'));
+  assert.ok(buttons.some((b) => b.callback_data === 'services:vpn_shop'));
+});

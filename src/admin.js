@@ -38,6 +38,7 @@ function createControlBot(deps) {
     keyboard: [
       [{ text: '➕ ساخت ربات جدید' }, { text: '📋 ربات‌های من' }],
       [{ text: '💰 کیف پول و شارژ' }, { text: '🎫 پشتیبانی و تیکت' }],
+      [{ text: '🧰 خدمات و ربات‌های ویژه' }],
       [{ text: '🎁 دریافت دمو رایگان' }],
       [{ text: 'ℹ️ راهنما' }]
     ],
@@ -392,6 +393,20 @@ function createControlBot(deps) {
       { reply_markup: { inline_keyboard: [[{ text: '➕ درخواست شارژ کیف پول', callback_data: 'wallet:topup' }], [{ text: '🔙 منوی اصلی', callback_data: 'back:menu' }]] } });
   }
 
+  async function servicesMenu(userId) {
+    return send(userId,
+      '🧰 <b>خدمات و ربات‌های ویژه</b>\n\n' +
+      'از این بخش می‌توانید ربات آماده، ربات شخصی مبتنی بر حساب تلگرام یا پروژهٔ سفارشی خودتان را انتخاب کنید.\n\n' +
+      '⚠️ سرویس‌های شخصی و سفارشی ممکن است نیازمند پلن پرداختی، موجودی کیف پول، Docker و gVisor باشند.',
+      { reply_markup: { inline_keyboard: [
+        [{ text: '🤖 قالب‌های آماده', callback_data: 'services:templates' }],
+        [{ text: '👤 ربات شخصی / Config Scraper', callback_data: 'services:config_scraper' }],
+        [{ text: '🛒 ربات فروشگاه VPN', callback_data: 'services:vpn_shop' }],
+        [{ text: '🧪 ربات با سورس سفارشی ZIP', callback_data: 'services:custom' }],
+        [{ text: '🔙 منوی اصلی', callback_data: 'back:menu' }]
+      ] } });
+  }
+
   async function supportMenu(userId) {
     await send(userId,
       `🎫 <b>پشتیبانی</b>\n\nقبل از ثبت تیکت، شاید پاسخ سؤال شما این‌جا باشد:\n\n${support.faqText()}`,
@@ -613,6 +628,22 @@ function createControlBot(deps) {
       }
 
       if (data.startsWith('cw:')) return cont.handleCallback(userId, data, cb.id);
+      if (data === 'services:templates') {
+        await api.answerCallbackQuery(cb.id);
+        return send(userId, '🤖 <b>قالب ربات را انتخاب کنید:</b>', { reply_markup: templateKeyboard() });
+      }
+      if (data === 'services:config_scraper') {
+        await api.answerCallbackQuery(cb.id);
+        return beginCreate(userId, 'config_scraper');
+      }
+      if (data === 'services:vpn_shop') {
+        await api.answerCallbackQuery(cb.id);
+        return beginCreate(userId, 'vpn_shop');
+      }
+      if (data === 'services:custom') {
+        await api.answerCallbackQuery(cb.id);
+        return customSourceLab(userId);
+      }
       if (data.startsWith('tpl:')) return beginCreate(userId, data.split(':')[1]);
       if (data.startsWith('plan:')) {
         const [, templateId, planId] = data.split(':');
@@ -796,6 +827,8 @@ function createControlBot(deps) {
         return send(userId, '🏠 منوی اصلی:', { reply_markup: getMainMenu(userId) });
       case '➕ ساخت ربات جدید':
         return send(userId, '🛠 <b>قالب ربات را انتخاب کنید:</b>', { reply_markup: templateKeyboard() });
+      case '🧰 خدمات و ربات‌های ویژه':
+        return servicesMenu(userId);
       case '🎁 دریافت دمو رایگان': {
         // jump straight into creation with demo pre-selected, respecting one-demo-per-template
         const eligible = Object.values(registry).filter((t) => !db.hasUsedDemo(userId, t.id));
