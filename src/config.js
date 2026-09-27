@@ -56,9 +56,9 @@ function loadConfig(envPath) {
   if (!cfg.PUBLIC_URL && !cfg.MOCK_TELEGRAM) problems.push('PUBLIC_URL missing in .env (needed for user-bot webhooks)');
   if (!cfg.OWNER_TELEGRAM_ID) problems.push('OWNER_TELEGRAM_ID missing in .env (platform owner user id)');
   if (!cfg.SECURITY_ALERT_SECRET) problems.push('SECURITY_ALERT_SECRET missing in .env');
-  if (!cfg.TELETHON_API_ID || !cfg.TELETHON_API_HASH || cfg.TELETHON_API_HASH.includes('PUT_')) {
-    problems.push('TELETHON_API_ID / TELETHON_API_HASH missing in .env (required for template #11 Config Auto-Scraper)');
-  }
+  // Telethon credentials are required only when the Config Auto-Scraper
+  // wizard is used; the base platform and the other templates must start
+  // without them.
   cfg.problems = problems;
   return cfg;
 }

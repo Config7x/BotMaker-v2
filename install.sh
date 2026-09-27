@@ -8,7 +8,109 @@ set -euo pipefail
 
 APP_DIR="/opt/botmaker-v2"
 SERVICE="botmaker-v2"
+NONINTERACTIVE="${NONINTERACTIVE:-0}"
 echo "==> BotMaker v2 installer (idempotent)"
+
+set_env_value() {
+  local key="$1" value="$2"
+  if grep -qE "^${key}=" .env 2>/dev/null; then
+    sed -i "s|^${key}=.*|${key}=${value}|" .env
+  else
+    printf '%s=%s\n' "$key" "$value" >> .env
+  fi
+}
+
+is_placeholder() {
+  [[ -z "${1:-}" || "$1" == EDIT_ME || "$1" == PUT_* || "$1" == 123456:ABC-* || "$1" == https://bots.yourdomain.com ]]
+}
+
+configure_env_interactive() {
+  if [[ "$NONINTERACTIVE" == "1" || ! -t 0 ]]; then
+    echo "==> Non-interactive mode: skipping .env questions (use NONINTERACTIVE=0 on a terminal to configure it)."
+    return
+  fi
+
+  echo ""
+  echo "==> Interactive configuration"
+  echo "    Each value is asked separately. Existing non-placeholder values are kept; press Enter to keep them."
+
+  local value current answer
+  current="$(grep -E '^CONTROL_BOT_TOKEN=' .env | cut -d= -f2- || true)"
+  if is_placeholder "$current"; then
+    read -r -p "توکن ربات کنترل از BotFather: " value
+    while [[ -z "$value" ]]; do read -r -p "این مقدار الزامی است، دوباره وارد کنید: " value; done
+    set_env_value CONTROL_BOT_TOKEN "$value"
+  else
+    echo "CONTROL_BOT_TOKEN از قبل تنظیم شده است."
+  fi
+
+  current="$(grep -E '^ENCRYPTION_KEY=' .env | cut -d= -f2- || true)"
+  if is_placeholder "$current"; then
+    read -r -p "برای ENCRYPTION_KEY کلید تصادفی خودکار ساخته شود؟ [Y/n]: " answer
+    if [[ ! "$answer" =~ ^[Nn]$ ]]; then
+      set_env_value ENCRYPTION_KEY "$(openssl rand -hex 32)"
+      echo "ENCRYPTION_KEY ساخته شد و نمایش داده نمی‌شود."
+    else
+      read -r -s -p "ENCRYPTION_KEY: " value; echo
+      while [[ ${#value} -lt 32 ]]; do read -r -s -p "حداقل ۳۲ کاراکتر، دوباره وارد کنید: " value; echo; done
+      set_env_value ENCRYPTION_KEY "$value"
+    fi
+  else
+    echo "ENCRYPTION_KEY از قبل تنظیم شده است."
+  fi
+
+  current="$(grep -E '^PUBLIC_URL=' .env | cut -d= -f2- || true)"
+  if is_placeholder "$current"; then
+    read -r -p "آدرس عمومی HTTPS پروژه (مثلاً https://bots.example.com): " value
+    while [[ -z "$value" ]]; do read -r -p "این مقدار الزامی است، دوباره وارد کنید: " value; done
+    set_env_value PUBLIC_URL "$value"
+  else
+    echo "PUBLIC_URL از قبل تنظیم شده است."
+  fi
+
+  current="$(grep -E '^OWNER_TELEGRAM_ID=' .env | cut -d= -f2- || true)"
+  if is_placeholder "$current"; then
+    read -r -p "شناسه عددی تلگرام مالک پلتفرم: " value
+    while [[ -z "$value" ]]; do read -r -p "این مقدار الزامی است، دوباره وارد کنید: " value; done
+    set_env_value OWNER_TELEGRAM_ID "$value"
+  else
+    echo "OWNER_TELEGRAM_ID از قبل تنظیم شده است."
+  fi
+
+  current="$(grep -E '^SECURITY_ALERT_SECRET=' .env | cut -d= -f2- || true)"
+  if is_placeholder "$current"; then
+    set_env_value SECURITY_ALERT_SECRET "$(openssl rand -hex 32)"
+    echo "SECURITY_ALERT_SECRET به‌صورت تصادفی ساخته شد."
+  fi
+
+  current="$(grep -E '^METRICS_TOKEN=' .env | cut -d= -f2- || true)"
+  if is_placeholder "$current"; then
+    read -r -p "برای endpoint مانیتورینگ (/metrics) توکن ساخته شود؟ [Y/n]: " answer
+    if [[ ! "$answer" =~ ^[Nn]$ ]]; then
+      set_env_value METRICS_TOKEN "$(openssl rand -hex 32)"
+      echo "METRICS_TOKEN ساخته شد؛ آن را در password manager نگه دارید."
+    else
+      set_env_value METRICS_TOKEN ""
+      echo "endpoint /metrics غیرفعال خواهد بود؛ /healthz و /readyz فعال می‌مانند."
+    fi
+  fi
+
+  current="$(grep -E '^TELETHON_API_ID=' .env | cut -d= -f2- || true)"
+  read -r -p "قالب Config Scraper را استفاده می‌کنید؟ API_ID و API_HASH تنظیم شود؟ [y/N]: " answer
+  if [[ "$answer" =~ ^[Yy]$ ]]; then
+    read -r -p "TELETHON_API_ID از my.telegram.org: " value
+    set_env_value TELETHON_API_ID "$value"
+    read -r -s -p "TELETHON_API_HASH از my.telegram.org: " value; echo
+    set_env_value TELETHON_API_HASH "$value"
+  else
+    set_env_value TELETHON_API_ID "0"
+    set_env_value TELETHON_API_HASH ""
+    echo "تنظیمات Telethon رد شد؛ قالب Config Scraper غیرفعال می‌ماند."
+  fi
+
+  chmod 600 .env
+  echo "==> تنظیمات در $APP_DIR/.env ذخیره شد."
+}
 
 # ---------------------------------------------------------------- node 20
 if ! command -v node >/dev/null || [[ "$(node -v | cut -d. -f1 | tr -d v)" -lt 20 ]]; then
@@ -40,7 +142,7 @@ rsync -a --exclude node_modules --exclude .env --exclude data \
 
 cd "$APP_DIR"
 if [[ ! -f .env ]]; then
-  echo "==> Creating .env from example — EDIT IT BEFORE STARTING"
+  echo "==> Creating .env from example"
   cp .env.example .env 2>/dev/null || cat > .env <<'ENVEOF'
 CONTROL_BOT_TOKEN=EDIT_ME
 ENCRYPTION_KEY=EDIT_ME
@@ -51,6 +153,7 @@ TELETHON_API_ID=0
 TELETHON_API_HASH=EDIT_ME
 ENVEOF
 fi
+configure_env_interactive
 mkdir -p data custom_sources
 
 echo "==> Installing npm dependencies"
@@ -118,7 +221,7 @@ EOF
 systemctl daemon-reload
 systemctl enable "${SERVICE}" >/dev/null 2>&1 || true
 
-if grep -q 'EDIT_ME' .env 2>/dev/null; then
+if grep -qE 'EDIT_ME|PUT_|123456:ABC-|bots\.yourdomain\.com' .env 2>/dev/null; then
   echo ""
   echo "********************************************************"
   echo "*  .env is not configured yet."
