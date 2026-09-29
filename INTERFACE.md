@@ -78,7 +78,6 @@ This document defines the interface contract between the core runner/webhook eng
 
 ## 5. Central Webhook & Internal Endpoints (`src/webhook.js`)
 
-- `GET /`: Minimal landing page (Base44 dev preview).
 - `GET /health`: Health check.
 - `POST /webhook/:secretToken`: Receives incoming Telegram updates (updates for containerized bots are skipped — they run in their own container).
 - `POST /internal/security-alert`: Internal security alert hook for runtime container violations.

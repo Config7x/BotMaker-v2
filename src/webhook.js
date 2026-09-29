@@ -62,29 +62,6 @@ function createWebhookApp({ db, config, adminHandler = null, runner = null }) {
   const app = express();
   app.use(express.json({ limit: '256kb' }));
 
-  // Landing page — confirms the server is alive in the preview
-  app.get('/', (req, res) => {
-    res.type('html').status(200).send(
-      `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BotMaker v2</title><style>
-body{font-family:system-ui,sans-serif;max-width:640px;margin:60px auto;padding:0 20px;color:#1a1a1a}
-h1{font-size:1.6rem}code{background:#f0f0f0;padding:2px 6px;border-radius:4px}
-.ok{color:#16a34a;font-weight:600}.muted{color:#666}
-</style></head><body>
-<h1>🤖 BotMaker v2</h1>
-<p class="ok">● Core engine running</p>
-<p>Multi-tenant Telegram bot builder platform.</p>
-<p class="muted">Mode: ${config.mock_telegram ? 'Mock Telegram' : 'Live'} &middot; Port: ${config.port}</p>
-<p>Endpoints:</p>
-<ul>
-<li><code>GET /health</code> — health check</li>
-<li><code>POST /webhook/:secretToken</code> — Telegram webhook dispatch</li>
-<li><code>POST /internal/security-alert</code> — security alert endpoint</li>
-</ul>
-</body></html>`
-    );
-  });
-
   // Health check endpoint
   app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });

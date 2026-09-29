@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Reverted PR #7 (Base44 dev environment): removed `docker-compose.base44.yml`, `.env.base44-defaults`, `.base44/`, `AGENTS.md`, the `GET /` landing page, and the related README section.
+
 ## v2.1.2 (2026-09-29)
 
 - **Fix:** `AI_AUTO_FIX_FEE_TOMAN` / `CUSTOM_SOURCE_FEE_TOMAN` env vars were documented but never wired — now loaded via `loadConfig` (env > config.json > default).
