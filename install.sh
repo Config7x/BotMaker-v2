@@ -225,7 +225,7 @@ else
 fi
 
 HP="$(grep -E '^PORT=' .env 2>/dev/null | cut -d= -f2-)"
-  echo "==> Done. Health check: curl http://localhost:${HP:-8443}/health"
+  echo "==> Done. Health check: curl http://localhost:${HP:-3000}/health"
 echo ""
 echo "Post-install checklist:"
 echo "  1) nano $APP_DIR/.env   — fill CONTROL_BOT_TOKEN, ENCRYPTION_KEY,"

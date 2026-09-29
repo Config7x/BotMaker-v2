@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Fix:** `.env.example` default `PORT` changed 8443 → 3000 to match the code default, README Caddy/health examples and install.sh (a README-following install would have proxied to the wrong port).
+- **Docs:** `.env.example` now lists all 12 previously undocumented env vars (HOST, PROJECTS_DIR, MOCK_TELEGRAM, fee vars, AI_*, GVISOR_AVAILABLE, lab switches).
+
 - Reverted PR #7 (Base44 dev environment): removed `docker-compose.base44.yml`, `.env.base44-defaults`, `.base44/`, `AGENTS.md`, the `GET /` landing page, and the related README section.
 
 ## v2.1.2 (2026-09-29)
