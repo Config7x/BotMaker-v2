@@ -54,6 +54,15 @@ sudo bash install.sh
 
 قالب‌های کانتینری و Custom Source هر نمونه را در کانتینر Docker خودش با `--runtime=runsc` (gVisor)، `cap-drop=ALL`، `no-new-privileges`، روت‌فایل read-only و محدودیت منابع اجرا می‌کنند. بدون gVisor، این ویژگی‌ها **FAIL-CLOSED** هستند.
 
+## اجرای توسعه‌ای (Docker / پیش‌نمایش Base44)
+
+```bash
+docker compose -f docker-compose.base44.yml up -d
+curl http://localhost:3000/health   # {"status":"ok",...}
+```
+
+این محیط با `MOCK_TELEGRAM=true` و مقادیر placeholder بوت می‌شود (فایل `.env.base44-defaults`)؛ رازهای واقعی از `/run/base44/app.env` تزریق و اولویت دارند. جزئیات در `AGENTS.md`.
+
 ## عملیات روزمره
 
 ```bash
