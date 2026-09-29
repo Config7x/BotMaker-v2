@@ -94,19 +94,12 @@ Templates must accurately represent capabilities and state explicit limitations 
 
 ---
 
-## 7. Registry Export (`src/templates/index.js`)
+## 7. Template Discovery (`src/webhook.js` + `src/templateManager.js`)
 
-The registry exports an array of metadata objects for all registered templates:
+Templates are discovered dynamically — there is no static registry file:
 
-```javascript
-module.exports = [
-  {
-    id: 'shop',
-    category: 'shop',
-    name: 'Shop Bot',
-    description: 'Catalog & Order Request Bot without payment gateway',
-    module: require('./shop')
-  },
-  ...
-];
-```
+1. Each built-in template lives in its own directory `src/templates/<id>/` with an `index.js` entry that exports `metadata` and `handle` (a legacy flat file `src/templates/<id>.js` or `src/templates/<id>/<id>.js` is also accepted by the webhook loader).
+2. Admin-installed ZIP templates are extracted by `src/templateManager.js` to a directory outside `src/templates`, registered in the `custom_templates` table (`source_dir`, `enabled`), and loaded from there.
+3. The webhook dispatcher (`loadTemplateModule`) resolves a template id to its module at dispatch time; unknown or disabled ids are rejected.
+
+Containerized templates (#10 VPN Shop, #11 Config Auto-Scraper) are the exception: they never run in-process. `src/containerTemplates.js` registers their wizard metadata, but updates to those bots are skipped by the platform webhook (`{ skipped: 'containerized' }`) because each instance runs in its own Docker container.

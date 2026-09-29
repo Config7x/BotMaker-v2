@@ -1,6 +1,6 @@
 # BotMaker v2: بسته آزمایشی VPS
 
-این نسخه برای **تست شخصی مالک روی VPS مجزا** است، نه میزبانی عمومی سورس کاربران. نصب واقعی روی VPS هنوز از این محیط تأیید نشده است. ۳۰ تست محلی گذشتند، اما Telegram، Docker و HTTPS در تست‌ها شبیه‌سازی شدند.
+این نسخه برای **تست شخصی مالک روی VPS مجزا** است، نه میزبانی عمومی سورس کاربران. نصب واقعی روی VPS هنوز از این محیط تأیید نشده است. ۹۷ تست محلی گذشتند، اما Telegram، Docker و HTTPS در تست‌ها شبیه‌سازی شدند.
 
 ## پیش‌نیاز
 
@@ -10,9 +10,19 @@
 
 ## نصب و تست اولیه
 
+دو مسیر پیکربندی وجود دارد:
+
+• روش ساده (پیشنهادی برای VPS): با اسکریپت idempotent که سرویس systemd هم نصب می‌کند و `.env` را به‌صورت تعاملی می‌سازد:
+
 ```bash
-unzip botmaker-v2-trial.zip
-cd botmaker-v2
+git clone https://github.com/Config7x/BotMaker-v2.git
+cd BotMaker-v2
+sudo bash install.sh
+```
+
+• روش دستی/آزمایشی محلی: پیکربندی `config.json` می‌سازد (بدون systemd):
+
+```bash
 bash setup.sh
 ```
 
@@ -32,7 +42,7 @@ bots.example.com {
 npm start
 ```
 
-برای آزمایش HTTP روی همان VPS: `curl http://127.0.0.1:3000/health`. سپس در گفتگوی خصوصی ربات کنترل `/start`، `/create_bot`، انتخاب قالب، و توکن **ربات تست جدید** را بفرستید. تا زمانی که `ADMIN_ONLY` را عمداً تغییر نداده‌اید، فقط مالک می‌تواند از ربات کنترل استفاده کند. شش قالب آزمایشی: shop، uploader، post_composer، channel_manager، quiz و downloader. دانلودر فقط لینک مستقیم را به تلگرام می‌دهد و دانلودر شبکه‌های اجتماعی نیست؛ هنوز برای بارگذاری لینک‌های ناشناس در محیط عمومی مناسب نیست.
+برای آزمایش HTTP روی همان VPS: `curl http://127.0.0.1:3000/health`. سپس در گفتگوی خصوصی ربات کنترل `/start`، `/create_bot`، انتخاب قالب، و توکن **ربات تست جدید** را بفرستید. تا زمانی که `ADMIN_ONLY` را عمداً تغییر نداده‌اید، فقط مالک می‌تواند از ربات کنترل استفاده کند. ۱۱ قالب درون‌پروسه (shop، uploader، post_composer، channel_manager، quiz، downloader، multi_downloader، music_downloader، music_bot، universal_poster، video_downloader) به‌علاوه ۲ قالب کانتینری فقط-Pro/VIP (#۱۰ فروشگاه VPN و #۱۱ اسکرپر کانفیگ) که هر نمونه در کانتینر Docker اختصاصی با gVisor اجرا می‌شود. جزئیات کامل در `README.md`.
 
 ## سورس سفارشی (فقط آزمایش مالک)
 

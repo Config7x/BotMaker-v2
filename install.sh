@@ -224,7 +224,8 @@ else
   systemctl --no-pager -l status "${SERVICE}" | head -12 || true
 fi
 
-echo "==> Done. Health check: curl http://localhost:8443/healthz"
+HP="$(grep -E '^PORT=' .env 2>/dev/null | cut -d= -f2-)"
+  echo "==> Done. Health check: curl http://localhost:${HP:-8443}/health"
 echo ""
 echo "Post-install checklist:"
 echo "  1) nano $APP_DIR/.env   — fill CONTROL_BOT_TOKEN, ENCRYPTION_KEY,"

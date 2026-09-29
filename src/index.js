@@ -1,5 +1,10 @@
 'use strict';
 
+// Load .env from the project root if present (idempotent; real env wins)
+try {
+  require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+} catch { /* dotenv not installed — rely on process environment / config.json */ }
+
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
