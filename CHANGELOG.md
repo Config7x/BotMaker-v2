@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.1.2 (2026-09-29)
+
+- **Fix:** `AI_AUTO_FIX_FEE_TOMAN` / `CUSTOM_SOURCE_FEE_TOMAN` env vars were documented but never wired — now loaded via `loadConfig` (env > config.json > default).
+- **Docs:** `INTERFACE.md` env table completed (CONTROL_BOT_TOKEN, ADMIN_ONLY, HOST, PROJECTS_DIR, lab switches, Telethon, gVisor, AI service vars), DB schema overview now lists all 12 tables (plans, demo_usage, update_receipts, wallet_transactions, support tickets, custom_templates, containers), endpoints section updated (GET /, GET /health, containerized skip).
+- **Docs:** `SECURITY-REVIEW.md` stale `/api/v2/webhook/*` paths corrected to actual endpoints (`/health`, `/webhook/:secretToken`).
+
 ## v2.1.1 (2026-09-29)
 
 - **Fix:** `.env` is now loaded via `dotenv` at startup — previously `install.sh` wrote `.env` but the service never read it (systemd installs ran on defaults).

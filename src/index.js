@@ -38,7 +38,9 @@ function loadConfig() {
     control_bot_token: process.env.CONTROL_BOT_TOKEN || fileConfig.control_bot_token || '',
     mock_telegram: process.env.MOCK_TELEGRAM === 'true' || fileConfig.mock_telegram || false,
     lab_mode: process.env.LAB_MODE === 'true',
-    projects_dir: process.env.PROJECTS_DIR || fileConfig.projects_dir || path.join(__dirname, '..', 'data', 'projects')
+    projects_dir: process.env.PROJECTS_DIR || fileConfig.projects_dir || path.join(__dirname, '..', 'data', 'projects'),
+    aiAutoFixFeeToman: Number(process.env.AI_AUTO_FIX_FEE_TOMAN || fileConfig.aiAutoFixFeeToman || 20000),
+    customSourceFeeToman: Number(process.env.CUSTOM_SOURCE_FEE_TOMAN || fileConfig.customSourceFeeToman || 50000)
   };
 }
 

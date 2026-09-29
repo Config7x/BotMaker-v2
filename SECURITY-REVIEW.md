@@ -49,7 +49,7 @@ An independent inspection of the existing v1 codebase (`botmaker/src/`) revealed
 | **Resource Efficiency** | High baseline idle CPU and network socket usage. | Highly scalable; easily routes updates to stateless workers or queue systems. |
 
 ### Webhook Recommendation & Hybrid Strategy:
-1. **Primary Mode (Public Multi-Tenant SaaS):** Use **Webhooks** as the default mechanism for all public multi-tenant bots. Incoming POST requests arrive at `/api/v2/webhook/:bot_id`, where the header `X-Telegram-Bot-Api-Secret-Token` is verified against the stored secret hash before queuing updates into an internal worker pool.
+1. **Primary Mode (Public Multi-Tenant SaaS):** Use **Webhooks** as the default mechanism for all public multi-tenant bots. Incoming POST requests arrive at `/webhook/:secretToken`, where the header `X-Telegram-Bot-Api-Secret-Token` is verified against the stored per-bot secret token before queuing updates into an internal worker pool.
 2. **Fallback / Lab Mode (Polling):** Retain a single sequential long-polling worker loop (using strict `async`/`await` recursion, avoiding `setInterval`) exclusively for local development or lab environments where public HTTPS ingress is unavailable.
 
 ---
@@ -283,17 +283,17 @@ sudo ufw allow 8443/tcp
 sudo ufw enable
 
 # 2. Test HTTPS TLS endpoint accessibility
-curl -Iv https://your-domain.com/api/v2/webhook/health
+curl -Iv https://your-domain.com/health
 
 # 3. Simulate unauthorized webhook POST (expect 403)
-curl -X POST https://your-domain.com/api/v2/webhook/bot_1 \
+curl -X POST https://your-domain.com/webhook/<secret_token> \
   -H "Content-Type: application/json" \
   -H "X-Telegram-Bot-Api-Secret-Token: INVALID_SECRET" \
   -d '{"update_id": 100}'
 # Expected response: 403 Forbidden
 
 # 4. Simulate authorized webhook POST (expect 200)
-curl -X POST https://your-domain.com/api/v2/webhook/bot_1 \
+curl -X POST https://your-domain.com/webhook/<secret_token> \
   -H "Content-Type: application/json" \
   -H "X-Telegram-Bot-Api-Secret-Token: VALID_CONFIGURED_SECRET" \
   -d '{"update_id": 101, "message": {"chat": {"id": 123}, "text": "/start"}}'

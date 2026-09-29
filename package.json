@@ -1,6 +1,6 @@
 {
   "name": "botmaker-v2",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "BotMaker v2 — multi-tenant Telegram Bot Builder SaaS (Persian, Node.js 20 + SQLite, 11 in-process templates + 2 containerized Pro/VIP templates)",
   "main": "src/index.js",
   "scripts": {
