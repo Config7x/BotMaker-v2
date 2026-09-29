@@ -1,0 +1,27 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/health",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "CONTROL_BOT_TOKEN",
+      "description": "Telegram control bot token from @BotFather. Required for real bot operation; the app runs in MOCK_TELEGRAM mode without it.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "TELETHON_API_ID",
+      "description": "Telethon API ID from https://my.telegram.org — only needed for template #11 (Config Auto-Scraper).",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "TELETHON_API_HASH",
+      "description": "Telethon API hash from https://my.telegram.org — only needed for template #11 (Config Auto-Scraper).",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "INTERNAL_ALERT_SECRET",
+      "description": "Shared secret for the /internal/security-alert endpoint (Falco integration). Optional.",
+      "requiredAtBoot": false
+    }
+  ]
+}
