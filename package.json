@@ -1,19 +1,23 @@
 {
   "name": "botmaker-v2",
-  "version": "2.0.0",
-  "private": true,
-  "description": "BotMaker v2 — multi-tenant Telegram Bot Builder SaaS (Persian, Node.js 20 + SQLite)",
+  "version": "2.1.0",
+  "description": "BotMaker v2 — multi-tenant Telegram Bot Builder SaaS (Persian, Node.js 20 + SQLite, 11 in-process templates + 2 containerized Pro/VIP templates)",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "test": "node --test test/*.test.js"
   },
-  "engines": {
-    "node": ">=20"
-  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "builder",
+    "botmaker"
+  ],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "better-sqlite3": "^12.11.1",
-    "express": "^5.2.1"
-  },
-  "license": "MIT"
+    "better-sqlite3": "^11.1.2",
+    "express": "^4.21.0",
+    "yauzl": "^3.4.0"
+  }
 }

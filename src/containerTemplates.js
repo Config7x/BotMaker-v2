@@ -1,32 +1,12 @@
 'use strict';
 
 /**
- * STATIC template registry. Only pre-built, code-reviewed modules are
- * require()'d here — no dynamic user code ever.
- *
- * §3.1-9: lightweight in-process templates (webhook-dispatched).
- * §3.10-11: containerized templates — separate runtimes (PHP+MySQL / Python
- * Telethon), provisioned as their own gVisor container per instance via the
- * provisioner. They are pre-built and code-reviewed: NO AI scan / admin
- * approval (unlike §6 custom source), and they are Pro/VIP-ONLY (never free/
- * demo). See containerTemplates below.
+ * Containerized template registry (§3.10 VPN Shop & §3.11 Config Auto-Scraper).
+ * These run as their own gVisor container per bot — NOT as in-process webhook
+ * modules. Pre-built + code-reviewed: no AI scan / no admin approval (unlike
+ * the Custom Source feature). Pro/VIP only — free/demo is refused outright.
  */
-const registry = {
-  shop: require('./shop/index'),
-  file_uploader: require('./file_uploader/index'),
-  post_composer: require('./post_composer/index'),
-  channel_manager: require('./channel_manager/index'),
-  quiz: require('./quiz/index'),
-  https_downloader: require('./https_downloader/index'),
-  universal_poster: require('./universal_poster/index'),
-  multi_downloader: require('./multi_downloader/index'),
-  music_downloader: require('./music_downloader/index')
-};
 
-/**
- * Containerized templates (§3.10 & §3.11).
- * wizard: 'panel' (VPN shop credential collection) | 'telethon' (user-session login)
- */
 const containerTemplates = {
   vpn_shop: {
     id: 'vpn_shop',
@@ -64,12 +44,9 @@ const containerTemplates = {
   }
 };
 
+const isContainerized = (id) => !!containerTemplates[id];
+
 module.exports = {
-  registry,
   containerTemplates,
-  isContainerized: (id) => !!containerTemplates[id],
-  listTemplates: () => [
-    ...Object.entries(registry).map(([id, t]) => ({ id, ...t, handle: undefined })),
-    ...Object.values(containerTemplates)
-  ]
+  isContainerized
 };

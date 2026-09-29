@@ -59,40 +59,30 @@ configure_env_interactive() {
     echo "ENCRYPTION_KEY از قبل تنظیم شده است."
   fi
 
-  current="$(grep -E '^PUBLIC_URL=' .env | cut -d= -f2- || true)"
+  current="$(grep -E '^PUBLIC_BASE_URL=' .env | cut -d= -f2- || true)"
   if is_placeholder "$current"; then
     read -r -p "آدرس عمومی HTTPS پروژه (مثلاً https://bots.example.com): " value
     while [[ -z "$value" ]]; do read -r -p "این مقدار الزامی است، دوباره وارد کنید: " value; done
-    set_env_value PUBLIC_URL "$value"
+    set_env_value PUBLIC_BASE_URL "$value"
   else
-    echo "PUBLIC_URL از قبل تنظیم شده است."
+    echo "PUBLIC_BASE_URL از قبل تنظیم شده است."
   fi
 
-  current="$(grep -E '^OWNER_TELEGRAM_ID=' .env | cut -d= -f2- || true)"
+  current="$(grep -E '^ADMIN_ID=' .env | cut -d= -f2- || true)"
   if is_placeholder "$current"; then
     read -r -p "شناسه عددی تلگرام مالک پلتفرم: " value
     while [[ -z "$value" ]]; do read -r -p "این مقدار الزامی است، دوباره وارد کنید: " value; done
-    set_env_value OWNER_TELEGRAM_ID "$value"
+    set_env_value ADMIN_ID "$value"
   else
-    echo "OWNER_TELEGRAM_ID از قبل تنظیم شده است."
+    echo "ADMIN_ID از قبل تنظیم شده است."
   fi
+  set_env_value ADMIN_ONLY "false"
 
-  current="$(grep -E '^SECURITY_ALERT_SECRET=' .env | cut -d= -f2- || true)"
-  if is_placeholder "$current"; then
-    set_env_value SECURITY_ALERT_SECRET "$(openssl rand -hex 32)"
-    echo "SECURITY_ALERT_SECRET به‌صورت تصادفی ساخته شد."
-  fi
 
-  current="$(grep -E '^METRICS_TOKEN=' .env | cut -d= -f2- || true)"
+  current="$(grep -E '^INTERNAL_ALERT_SECRET=' .env | cut -d= -f2- || true)"
   if is_placeholder "$current"; then
-    read -r -p "برای endpoint مانیتورینگ (/metrics) توکن ساخته شود؟ [Y/n]: " answer
-    if [[ ! "$answer" =~ ^[Nn]$ ]]; then
-      set_env_value METRICS_TOKEN "$(openssl rand -hex 32)"
-      echo "METRICS_TOKEN ساخته شد؛ آن را در password manager نگه دارید."
-    else
-      set_env_value METRICS_TOKEN ""
-      echo "endpoint /metrics غیرفعال خواهد بود؛ /healthz و /readyz فعال می‌مانند."
-    fi
+    set_env_value INTERNAL_ALERT_SECRET "$(openssl rand -hex 32)"
+    echo "INTERNAL_ALERT_SECRET به‌صورت تصادفی ساخته شد."
   fi
 
   current="$(grep -E '^TELETHON_API_ID=' .env | cut -d= -f2- || true)"
@@ -146,9 +136,9 @@ if [[ ! -f .env ]]; then
   cp .env.example .env 2>/dev/null || cat > .env <<'ENVEOF'
 CONTROL_BOT_TOKEN=EDIT_ME
 ENCRYPTION_KEY=EDIT_ME
-PUBLIC_URL=EDIT_ME
-OWNER_TELEGRAM_ID=EDIT_ME
-SECURITY_ALERT_SECRET=EDIT_ME
+PUBLIC_BASE_URL=EDIT_ME
+ADMIN_ID=EDIT_ME
+INTERNAL_ALERT_SECRET=EDIT_ME
 TELETHON_API_ID=0
 TELETHON_API_HASH=EDIT_ME
 ENVEOF
@@ -238,7 +228,7 @@ echo "==> Done. Health check: curl http://localhost:8443/healthz"
 echo ""
 echo "Post-install checklist:"
 echo "  1) nano $APP_DIR/.env   — fill CONTROL_BOT_TOKEN, ENCRYPTION_KEY,"
-echo "     PUBLIC_URL, OWNER_TELEGRAM_ID, and for template #11:"
+echo "     PUBLIC_BASE_URL, ADMIN_ID, and for template #11:"
 echo "     TELETHON_API_ID / TELETHON_API_HASH (from https://my.telegram.org)"
 echo "  2) systemctl start ${SERVICE}"
 echo "  3) For containerized templates: Docker + gVisor required (fail-closed)."

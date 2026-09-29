@@ -1,51 +1,90 @@
 'use strict';
 
+const { URL } = require('url');
+
 /**
- * SSRF protection for user-supplied download/attachment URLs.
- * Blocks private/loopback/link-local/reserved ranges and non-HTTP(S) schemes.
- * DNS-pinning is enforced at fetch time: resolve the hostname, re-check every
- * resolved address before connecting.
+ * Checks whether an IP address string is a private / loopback / link-local IP.
+ * @param {string} ip 
+ * @returns {boolean} True if private or unsafe
  */
-const BLOCKED_HOST_PATTERNS = [
-  /^localhost$/i,
-  /^127\./,
-  /^0\./,
-  /^10\./,
-  /^192\.168\./,
-  /^172\.(1[6-9]|2\d|3[01])\./,
-  /^169\.254\./,
-  /^::1$/,
-  /^f[cd][0-9a-f]{2}:/i,
-  /^\[?fe80:/i,
-  /^\[?fc00:/i,
-  /^192\.0\.2\./,
-  /^198\.51\.100\./,
-  /^203\.0\.113\./,
-  /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./
-];
+function isPrivateIp(ip) {
+  if (!ip) return false;
+  
+  // Normalize IPv6 mapped IPv4
+  let cleanIp = ip.replace(/^::ffff:/i, '');
 
-function isBlockedIp(host) {
-  return BLOCKED_HOST_PATTERNS.some((p) => p.test(String(host).replace(/^\[|\]$/g, '')));
+  if (cleanIp === 'localhost' || cleanIp === '0.0.0.0') return true;
+
+  // IPv4 Checks
+  const parts = cleanIp.split('.').map(Number);
+  if (parts.length === 4 && parts.every(p => !isNaN(p) && p >= 0 && p <= 255)) {
+    const [a, b] = parts;
+    // 127.0.0.0/8 (Loopback)
+    if (a === 127) return true;
+    // 10.0.0.0/8 (Private)
+    if (a === 10) return true;
+    // 172.16.0.0/12 (Private)
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    // 192.168.0.0/16 (Private)
+    if (a === 192 && b === 168) return true;
+    // 169.254.0.0/16 (Link Local / Cloud Metadata)
+    if (a === 169 && b === 254) return true;
+    // 0.0.0.0/8
+    if (a === 0) return true;
+  }
+
+  // IPv6 Checks
+  if (cleanIp === '::1' || cleanIp.toLowerCase().startsWith('fe80:') || cleanIp.toLowerCase().startsWith('fc00:')) {
+    return true;
+  }
+
+  return false;
 }
 
-function validateUrl(rawUrl) {
-  if (!rawUrl || typeof rawUrl !== 'string') {
-    return { safe: false, reason: 'لینک خالی یا نامعتبر است.' };
+/**
+ * Validates a URL string against SSRF attacks.
+ * @param {string} urlString 
+ * @returns {{ safe: boolean, reason?: string, url?: URL }}
+ */
+function validateUrl(urlString) {
+  if (!urlString || typeof urlString !== 'string') {
+    return { safe: false, reason: 'لینک وارد شده معتبر نیست.' };
   }
-  let url;
+
+  let parsedUrl;
   try {
-    url = new URL(rawUrl.trim());
-  } catch (_) {
-    return { safe: false, reason: 'آدرس وارد شده یک URL معتبر نیست.' };
+    parsedUrl = new URL(urlString.trim());
+  } catch (err) {
+    return { safe: false, reason: 'فرمت URL معتبر نیست.' };
   }
-  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-    return { safe: false, reason: 'فقط پروتکل‌های HTTP و HTTPS مجاز هستند.' };
+
+  // Check Protocol (Must be http or https, prefer https)
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    return { safe: false, reason: 'فقط پروتکل‌های HTTP و HTTPS پشتیبانی می‌شوند.' };
   }
-  const host = url.hostname.toLowerCase();
-  if (isBlockedIp(host)) {
-    return { safe: false, reason: 'آدرس‌های شبکه داخلی و خصوصی مسدود شده‌اند (SSRF).' };
+
+  const hostname = parsedUrl.hostname.toLowerCase();
+
+  // Check hostname keywords and private TLDs
+  if (
+    hostname === 'localhost' ||
+    hostname.endsWith('.local') ||
+    hostname.endsWith('.internal') ||
+    hostname.endsWith('.lan') ||
+    hostname.endsWith('.localhost')
+  ) {
+    return { safe: false, reason: 'دسترسی به دامنه‌ها و شبکه‌های داخلی امکان‌پذیر نیست (SSRF Protection).' };
   }
-  return { safe: true, url };
+
+  // Check IP addresses
+  if (isPrivateIp(hostname)) {
+    return { safe: false, reason: 'دسترسی به IPهای داخلی و خصوصی مسدود شده است (SSRF Protection).' };
+  }
+
+  return { safe: true, url: parsedUrl };
 }
 
-module.exports = { validateUrl, isBlockedIp, BLOCKED_HOST_PATTERNS };
+module.exports = {
+  isPrivateIp,
+  validateUrl
+};

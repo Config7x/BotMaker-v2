@@ -1,104 +1,202 @@
 'use strict';
 
 const test = require('node:test');
-const assert = require('node:assert');
-const { createDb } = require('../src/db');
-const lifecycle = require('../src/lifecycle');
-const { TelegramApi } = require('../src/telegram');
-const { encrypt } = require('../src/cryptoutil');
+const assert = require('node:assert/strict');
+const { BotDb } = require('../src/db');
+const { runLifecycleCheck } = require('../src/lifecycle');
+const { AdminController } = require('../src/admin');
+const { createTelegramApi, clearMockCalls, getMockCalls } = require('../src/telegram');
 
-const MIN = 60 * 1000;
-const ENC = 'test-encryption-key-123';
+test('Wallet Operations - Deposit, Charge, Transactions & Insufficient Funds', async () => {
+  const db = new BotDb(':memory:');
+  const userId = 1001;
 
-function mkBot(db, owner, over = {}) {
-  db.upsertUser(owner);
+  // Initial balance should be 0
+  assert.equal(db.getWalletBalance(userId), 0);
+
+  // Deposit 150,000 Toman
+  const bal1 = db.addWalletBalance(userId, 150000, 'deposit', 'شارژ اولیه');
+  assert.equal(bal1, 150000);
+  assert.equal(db.getWalletBalance(userId), 150000);
+
+  // Charge 50,000 Toman
+  const bal2 = db.chargeWallet(userId, 50000, 'خرید پلن');
+  assert.equal(bal2, 100000);
+  assert.equal(db.getWalletBalance(userId), 100000);
+
+  // Check transaction log
+  const txs = db.getWalletTransactions(userId);
+  assert.equal(txs.length, 2);
+  assert.equal(txs[0].type, 'charge');
+  assert.equal(txs[1].type, 'deposit');
+
+  // Charge exceeding balance should throw INSUFFICIENT_BALANCE
+  assert.throws(() => {
+    db.chargeWallet(userId, 200000, 'خرید پلن سنگین');
+  }, /INSUFFICIENT_BALANCE/);
+
+  db.close();
+});
+
+test('Plans Seeding & Bot Plan Assignment', async () => {
+  const db = new BotDb(':memory:');
+  const userId = 1002;
+
+  const plans = db.getPlans();
+  assert.equal(plans.length, 3);
+  assert.ok(plans.some(p => p.id === 'free'));
+  assert.ok(plans.some(p => p.id === 'pro'));
+  assert.ok(plans.some(p => p.id === 'vip'));
+
+  // Create a bot
   const bot = db.createBot({
-    id: over.id || 'demo1', owner_id: owner,
-    token_encrypted: encrypt('111:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', ENC),
-    secret_token: over.secret_token || 'sec', username: over.username || 'demobot',
-    template_id: over.template_id || 'quiz', plan_id: over.plan_id || 'free',
-    status: over.status || 'active', created_at: over.created_at, config: over.config
+    ownerId: userId,
+    token: '111111111:ABCdefGHIjklMNOpqrsTUVwxyZ11111',
+    username: 'TestPlanBot',
+    templateId: 'shop',
+    encryptionKey: 'test_admin_enc_key_32bytes_long!'
   });
-  return bot;
-}
 
-function deps(log) {
-  const apiFor = () => new TelegramApi('111:x', { mock: true, mockLog: log, mockResponses: {} });
-  return { apiFor, publicUrl: 'https://example.com' };
-}
+  assert.equal(bot.plan_id, 'free');
+  assert.ok(bot.expires_at);
 
-test('lifecycle: exact demo-cycle timings (50min warn, 60min grace, +300min delete)', async () => {
-  const db = createDb(':memory:');
-  const log = [];
-  const t0 = 1_000_000_000;
-  const bot = mkBot(db, 777, { created_at: t0 });
+  // Set bot plan to 'pro'
+  const updatedBot = db.setBotPlan(bot.id, 'pro', 30);
+  assert.equal(updatedBot.plan_id, 'pro');
 
-  // nothing at 49 minutes
-  mkBot0(); function mkBot0() {}
-  let out = await lifecycle.tick(db, deps(log), t0 + 49 * MIN);
-  assert.strictEqual(out.length, 0);
-  assert.strictEqual(db.getBot(bot.id).config.warned || 0, 0);
-
-  // warning exactly at 50 minutes — one-time
-  out = await lifecycle.tick(db, deps(log), t0 + 50 * MIN);
-  assert.strictEqual(out.length, 1);
-  assert.strictEqual(out[0].type, 'warn');
-  assert.ok(log.some((c) => c.method === 'sendMessage' && /یادآوری/.test(c.payload.text)));
-  out = await lifecycle.tick(db, deps(log), t0 + 55 * MIN); // no repeat
-  assert.strictEqual(out.length, 0);
-
-  // grace at 60 minutes: webhook removed, status grace, data intact
-  const d = deps(log);
-  out = await lifecycle.tick(db, d, t0 + 60 * MIN);
-  assert.strictEqual(out.length, 1);
-  assert.strictEqual(out[0].type, 'grace');
-  const g = db.getBot(bot.id);
-  assert.strictEqual(g.status, 'grace');
-  assert.ok(log.some((c) => c.method === 'deleteWebhook'));
-  assert.ok(log.some((c) => c.method === 'sendMessage' && /۳۰۰ دقیقه/.test(c.payload.text)));
-
-  // data intact during grace
-  const store = db.botStore(bot.id);
-  await store.set('quiz', { a: 1 });
-  assert.deepStrictEqual(await store.get('quiz'), { a: 1 });
-
-  // still in grace at +299 minutes
-  out = await lifecycle.tick(db, deps(log), t0 + (60 + 299) * MIN);
-  assert.strictEqual(out.length, 0);
-
-  // permanent deletion at grace_start + 300 minutes, with final notice
-  out = await lifecycle.tick(db, deps(log), t0 + (60 + 300) * MIN);
-  assert.strictEqual(out.length, 1);
-  assert.strictEqual(out[0].type, 'delete');
-  assert.strictEqual(db.getBot(bot.id), undefined);
-  assert.ok(log.some((c) => c.method === 'sendMessage' && /دائمی حذف شد/.test(c.payload.text)));
+  db.close();
 });
 
-test('lifecycle: upgrade during grace restores active immediately', async () => {
-  const db = createDb(':memory:');
-  const log = [];
-  const t0 = 2_000_000_000;
-  const bot = mkBot(db, 888, { created_at: t0 });
-  const wallet = require('../src/wallet');
+test('Subscription Lifecycle Job - Auto-Renewal and Expiration Pausing', async () => {
+  const db = new BotDb(':memory:');
+  const userId = 1003;
+  const config = {
+    encryption_key: 'test_admin_enc_key_32bytes_long!',
+    mock_telegram: true
+  };
 
-  await lifecycle.tick(db, deps(log), t0 + 60 * MIN); // -> grace
-  assert.strictEqual(db.getBot(bot.id).status, 'grace');
+  // 1. Bot with Free Plan (Price 0) - Should auto renew for free
+  const botFree = db.createBot({
+    ownerId: userId,
+    token: '222222222:ABCdefGHIjklMNOpqrsTUVwxyZ22222',
+    username: 'FreeBot',
+    templateId: 'shop',
+    encryptionKey: config.encryption_key
+  });
 
-  // fund wallet and upgrade
-  wallet.credit(db, 888, 300000, 'topup', '');
-  const r = await lifecycle.upgradeDemoBot(db, deps(log), { botId: bot.id, userId: 888, planId: 'pro', now: t0 + 90 * MIN });
-  assert.strictEqual(r.ok, true);
-  const up = db.getBot(bot.id);
-  assert.strictEqual(up.status, 'active');
-  assert.strictEqual(up.plan_id, 'pro');
-  assert.ok(log.some((c) => c.method === 'setWebhook'));
+  // Set expires_at in the past
+  db.sqlite.prepare("UPDATE bots SET expires_at = ? WHERE id = ?").run(new Date(Date.now() - 3600000).toISOString(), botFree.id);
+
+  let res = await runLifecycleCheck({ db, config });
+  assert.equal(res.renewed.length, 1);
+  assert.equal(res.renewed[0].botId, botFree.id);
+
+  // 2. Bot with Pro Plan (Price 100,000) & Sufficient Balance -> Auto Renew
+  db.addWalletBalance(userId, 100000, 'deposit', 'شارژ برای تمدید');
+  db.setBotPlan(botFree.id, 'pro', 30);
+  db.sqlite.prepare("UPDATE bots SET expires_at = ? WHERE id = ?").run(new Date(Date.now() - 3600000).toISOString(), botFree.id);
+
+  res = await runLifecycleCheck({ db, config });
+  assert.equal(res.renewed.length, 1);
+  assert.equal(db.getWalletBalance(userId), 0); // Balance deducted
+  const renewedBot = db.getBotById(botFree.id);
+  assert.equal(renewedBot.status, 'active');
+  assert.ok(new Date(renewedBot.expires_at) > new Date());
+
+  // 3. Bot with Pro Plan & Insufficient Balance -> Paused
+  db.sqlite.prepare("UPDATE bots SET expires_at = ? WHERE id = ?").run(new Date(Date.now() - 3600000).toISOString(), botFree.id);
+  res = await runLifecycleCheck({ db, config });
+  assert.equal(res.paused.length, 1);
+  const pausedBot = db.getBotById(botFree.id);
+  assert.equal(pausedBot.status, 'paused');
+
+  db.close();
 });
 
-test('lifecycle: one demo per template type — second attempt is not eligible', () => {
-  const db = createDb(':memory:');
-  db.upsertUser(999);
-  assert.strictEqual(db.hasUsedDemo(999, 'quiz'), false);
-  db.markDemoUsed(999, 'quiz');
-  assert.strictEqual(db.hasUsedDemo(999, 'quiz'), true);
-  assert.strictEqual(db.hasUsedDemo(999, 'shop'), false); // other templates remain eligible
+test('Support Tickets - Create, Reply, Close & Master Admin Console', async () => {
+  clearMockCalls();
+  const db = new BotDb(':memory:');
+  const adminId = 8888;
+  const userId = 1004;
+  const config = {
+    admin_id: adminId,
+    max_bots_per_user: 5,
+    encryption_key: 'test_admin_enc_key_32bytes_long!',
+    mock_telegram: true
+  };
+
+  const adminController = new AdminController({ db, config });
+  const mockApi = createTelegramApi('000000000:ControlBotTokenABCdefGHIjklMNO', { mock: true });
+
+  // 1. User opens Support Ticket
+  const ticket = db.createSupportTicket({
+    userId,
+    subject: 'مشکل در پرداخت',
+    message: 'سلام، کیف پول شارژ نشد.'
+  });
+
+  assert.equal(ticket.subject, 'مشکل در پرداخت');
+  assert.equal(ticket.status, 'open');
+  assert.equal(ticket.messages.length, 1);
+
+  // 2. Admin views open tickets via /admin_tickets
+  clearMockCalls();
+  await adminController.handleUpdate({
+    update: { message: { from: { id: adminId }, chat: { id: adminId }, text: '/admin_tickets' } },
+    api: mockApi
+  });
+  const calls1 = getMockCalls();
+  assert.match(calls1[0].payload.text, /تیکت‌های باز/);
+
+  // 3. Admin replies to ticket via /admin_reply
+  clearMockCalls();
+  await adminController.handleUpdate({
+    update: { message: { from: { id: adminId }, chat: { id: adminId }, text: `/admin_reply ${ticket.id} سلام، پیگیری شد.` } },
+    api: mockApi
+  });
+
+  const updatedTicket = db.getTicketById(ticket.id);
+  assert.equal(updatedTicket.status, 'replied');
+  assert.equal(updatedTicket.messages.length, 2);
+
+  // 4. Admin adjusts User Wallet via /admin_wallet
+  clearMockCalls();
+  await adminController.handleUpdate({
+    update: { message: { from: { id: adminId }, chat: { id: adminId }, text: `/admin_wallet ${userId} 250000` } },
+    api: mockApi
+  });
+  assert.equal(db.getWalletBalance(userId), 250000);
+
+  // 5. Admin opens Master Console via /admin
+  clearMockCalls();
+  await adminController.handleUpdate({
+    update: { message: { from: { id: adminId }, chat: { id: adminId }, text: '/admin' } },
+    api: mockApi
+  });
+  const calls2 = getMockCalls();
+  assert.match(calls2[0].payload.text, /پنل مدیریت ارشد/);
+
+  // 6. User accesses /wallet menu and deposits preset
+  clearMockCalls();
+  await adminController.handleUpdate({
+    update: { message: { from: { id: userId }, chat: { id: userId }, text: '/wallet' } },
+    api: mockApi
+  });
+  const walletCalls = getMockCalls();
+  assert.match(walletCalls[0].payload.text, /کیف پول و حساب کاربری/);
+
+  // Deposit preset via callback query
+  await adminController.handleCallbackQuery({
+    callbackQuery: {
+      id: 'cb_123',
+      from: { id: userId },
+      message: { chat: { id: userId } },
+      data: 'wallet:deposit_preset:50000'
+    },
+    api: mockApi
+  });
+
+  assert.equal(db.getWalletBalance(userId), 300000);
+
+  db.close();
 });

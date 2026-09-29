@@ -87,17 +87,17 @@ function createContainerized(deps) {
   function startWizard(userId, bot) {
     const tpl = containerTemplates[bot.template_id];
     if (tpl.wizard === 'panel') {
-      setState(userId, { s: 'cw:panel_type', botId: bot.id });
+      setState(userId, { step: 'cw:panel_type', botId: bot.id });
       const rows = tpl.panelTypes.map((t) => [{ text: t.toUpperCase(), callback_data: `cw:ptype:${bot.id}:${t}` }]);
       return send(userId, '🔌 <b>پنل مدیریت VPN شما</b> از کدام نوع است؟', { reply_markup: { inline_keyboard: rows } });
     }
     // telethon wizard — ToS/ban-risk disclosure FIRST, explicit acceptance required
-    setState(userId, { s: 'cw:tos', botId: bot.id });
+    setState(userId, { step: 'cw:tos', botId: bot.id });
     return send(userId, tpl.tosRisk, {
       reply_markup: {
         inline_keyboard: [
-          [{ text: '✅ متوجه‌ام، ادامه می‌دهم', callback_data: `cw:tosaccept:${bot.id}` }],
-          [{ text: '❌ انصراف', callback_data: 'cancel_flow' }]
+          [{ text: '✅ متوجه‌ام، ادامه می‌دهم', callback_data: `cw:tosaccept:${bot.id}`, style: 'success' }],
+          [{ text: '❌ انصراف', callback_data: 'cancel_flow', style: 'danger' }]
         ]
       }
     });
@@ -109,7 +109,7 @@ function createContainerized(deps) {
     const bot = db.getBot(botId);
     if (!bot) return;
     db.updateBot(botId, { config: { ...bot.config, panel_type: type } });
-    setState(userId, { s: 'cw:panel_url', botId });
+    setState(userId, { step: 'cw:panel_url', botId });
     return send(userId, '🌐 <b>آدرس پایه پنل</b> را ارسال کنید (مثال: <code>https://panel.example.com</code>)');
   }
 
@@ -121,7 +121,7 @@ function createContainerized(deps) {
     const bot = db.getBot(botId);
     if (!bot) return;
     db.updateBot(botId, { config: { ...bot.config, panel_url: u } });
-    setState(userId, { s: 'cw:panel_user', botId });
+    setState(userId, { step: 'cw:panel_user', botId });
     return send(userId, '👤 <b>نام کاربری ادمین / کاربر API پنل</b> را ارسال کنید.');
   }
 
@@ -129,7 +129,7 @@ function createContainerized(deps) {
     const bot = db.getBot(botId);
     if (!bot) return;
     db.updateBot(botId, { config: { ...bot.config, panel_user: String(user).trim() } });
-    setState(userId, { s: 'cw:panel_pass', botId });
+    setState(userId, { step: 'cw:panel_pass', botId });
     return send(userId,
       '🔑 <b>رمز عبور / کلید API پنل</b> را ارسال کنید.\n' +
       '<i>🔒 رمزنگاری‌شده (AES-256-GCM) ذخیره می‌شود و هرگز متن ساده نگه داشته نمی‌شود.</i>');
@@ -155,7 +155,7 @@ function createContainerized(deps) {
     if (!r.ok) {
       return send(userId, `❌ شروع لاگین ناموفق بود: <code>${escapeHtml(r.error || '')}</code>`);
     }
-    setState(userId, { s: 'cw:otp', botId, loginKey: r.loginKey });
+    setState(userId, { step: 'cw:otp', botId, loginKey: r.loginKey });
     return send(userId, `📨 کد تأیید تلگرام برای <code>${escapeHtml(ph)}</code> را ارسال کنید.`);
   }
 
@@ -165,7 +165,7 @@ function createContainerized(deps) {
     const r = await telethon.submitCode(st.loginKey, String(code).trim());
     if (!r.ok) return send(userId, `❌ کد پذیرفته نشد: <code>${escapeHtml(r.error || '')}</code>`);
     if (r.need === 'password') {
-      setState(userId, { s: 'cw:twofa', botId, loginKey: st.loginKey });
+      setState(userId, { step: 'cw:twofa', botId, loginKey: st.loginKey });
       return send(userId, '🔐 این اکانت <b>رمز دو مرحله‌ای</b> دارد. رمز دوم را ارسال کنید.');
     }
     return finishSession(userId, botId, r.session);
@@ -184,7 +184,7 @@ function createContainerized(deps) {
     if (!bot) return;
     // session string AES-256-GCM encrypted at rest — same scheme as tokens
     db.updateBot(botId, { config: { ...bot.config, session_enc: encrypt(session, cfg.ENCRYPTION_KEY) } });
-    setState(userId, { s: 'cw:dest', botId });
+    setState(userId, { step: 'cw:dest', botId });
     return send(userId,
       '✅ سشن اکانت رصد ساخته و رمزنگاری شد.\n\n' +
       '📢 حالا <b>آیدی کانال مقصد</b> خودتان را ارسال کنید (کانالی که ربات ادمین آن است، مثال: <code>@my_configs</code>).');
@@ -208,9 +208,9 @@ function createContainerized(deps) {
   /** Returns true when a cw:* state consumed the text. */
   async function handleStateText(userId, text) {
     const st = state(userId);
-    if (!st || !String(st.s).startsWith('cw:')) return false;
+    if (!st || !String(st.step).startsWith('cw:')) return false;
     const botId = st.botId;
-    switch (st.s) {
+    switch (st.step) {
       case 'cw:panel_url': await stepPanelUrl(userId, botId, text); return true;
       case 'cw:panel_user': await stepPanelUser(userId, botId, text); return true;
       case 'cw:panel_pass': await stepPanelPass(userId, botId, text); return true;
@@ -229,7 +229,7 @@ function createContainerized(deps) {
 
     if (action === 'ptype') { await stepPanelType(userId, botId, arg); return true; }
     if (action === 'tosaccept') {
-      setState(userId, { s: 'cw:phone', botId });
+      setState(userId, { step: 'cw:phone', botId });
       await send(userId, '📱 شماره موبایل <b>اکانت رصد</b> (شماره دوم خودتان) را با فرمت بین‌المللی ارسال کنید: <code>+98912xxxxxxx</code>');
       return true;
     }
@@ -243,7 +243,7 @@ function createContainerized(deps) {
     if (action === 'status' || action === 'restart') return panelAction(userId, action, botId, cbId);
     if (action === 'channels') return showChannels(userId, botId);
     if (action === 'addchannel') {
-      setState(userId, { s: 'cw:addchannel', botId });
+      setState(userId, { step: 'cw:addchannel', botId });
       await send(userId, '➕ آیدی کانال منبع را ارسال کنید (مثال: <code>@source_channel</code>). برای پایان، /done بفرستید.');
       return true;
     }
@@ -263,7 +263,7 @@ function createContainerized(deps) {
   // add-channel state lives here too
   async function handleAddChannel(userId, text) {
     const st = state(userId);
-    if (!st || st.s !== 'cw:addchannel') return false;
+    if (!st || st.step !== 'cw:addchannel') return false;
     if (text.trim() === '/done') {
       clearState(userId);
       await send(userId, '✅ فهرست کانال‌های منبع ذخیره شد. اسکرپر به‌زودی آن‌ها را رصد می‌کند.');
@@ -290,7 +290,7 @@ function createContainerized(deps) {
     const list = bot.config.source_channels || [];
     const rows = list.map((ch, i) => ([{ text: `❌ ${ch}`, callback_data: `cw:rmchannel:${botId}:${i}` }]));
     rows.push([{ text: '➕ افزودن کانال منبع', callback_data: `cw:addchannel:${botId}` }]);
-    rows.push([{ text: '🔙 بازگشت به پنل', callback_data: `openpanel:${botId}` }]);
+    rows.push([{ text: '🔙 بازگشت به پنل', callback_data: `openpanel:${botId}`, style: 'primary' }]);
     return send(userId,
       `📡 <b>کانال‌های منبع اسکرپر</b>\n\n${list.length ? list.map((c) => `• <code>${escapeHtml(c)}</code>`).join('\n') : '(خالی)'}`,
       { reply_markup: { inline_keyboard: rows } });
@@ -300,19 +300,18 @@ function createContainerized(deps) {
   function panelKeyboard(bot) {
     const rows = [];
     const c = db.getContainer(bot.id);
-    rows.push([{ text: '🔄 تمدید فوری', callback_data: `botpanel:renew:${bot.id}` },
-      { text: bot.auto_renew ? '🔁 خاموش کردن تمدید خودکار' : '🔁 روشن کردن تمدید خودکار', callback_data: `botpanel:autorenew:${bot.id}` }]);
-    rows.push([{ text: `🐳 وضعیت کانتینر${c ? `: ${c.status}` : ''}`, callback_data: `cw:status:${bot.id}` },
-      { text: '🔁 راه‌اندازی مجدد کانتینر', callback_data: `cw:restart:${bot.id}` }]);
-    rows.push([{ text: bot.status === 'paused' ? '▶️ روشن کردن ربات' : '⏸ توقف دستی ربات', callback_data: `botpanel:pause:${bot.id}` }]);
+    rows.push([{ text: '🔄 تمدید فوری', callback_data: `mybots:renew:${bot.id}`, style: 'success' },
+      { text: bot.auto_renew ? '🔁 خاموش کردن تمدید خودکار' : '🔁 روشن کردن تمدید خودکار', callback_data: `mybots:toggle_renew:${bot.id}`, style: 'primary' }]);
+    rows.push([{ text: `🐳 وضعیت کانتینر${c ? `: ${c.status}` : ''}`, callback_data: `cw:status:${bot.id}`, style: 'primary' },
+      { text: '🔁 راه‌اندازی مجدد کانتینر', callback_data: `cw:restart:${bot.id}`, style: 'primary' }]);
+    rows.push([{ text: bot.status === 'paused' ? '▶️ روشن کردن ربات' : '⏸ توقف دستی ربات', callback_data: `mybots:${bot.status === 'paused' ? 'resume' : 'pause'}:${bot.id}`, style: bot.status === 'paused' ? 'success' : 'danger' }]);
     if (bot.status === 'failed_provision') {
-      rows.push([{ text: '🚀 تلاش مجدد راه‌اندازی', callback_data: `cw:retryprovision:${bot.id}` }]);
+      rows.push([{ text: '🚀 تلاش مجدد راه‌اندازی', callback_data: `cw:retryprovision:${bot.id}`, style: 'success' }]);
     }
     if (bot.template_id === 'config_scraper') {
-      rows.push([{ text: '📡 مدیریت کانال‌های منبع', callback_data: `cw:channels:${bot.id}` }]);
+      rows.push([{ text: '📡 مدیریت کانال‌های منبع', callback_data: `cw:channels:${bot.id}`, style: 'primary' }]);
     }
-    rows.push([{ text: '❌ حذف ربات', callback_data: `botpanel:deleteconfirm:${bot.id}` }]);
-    rows.push([{ text: '🔙 بازگشت به لیست', callback_data: 'back:bots' }]);
+    rows.push([{ text: '🗑 حذف ربات', callback_data: `mybots:delete:${bot.id}`, style: 'danger' }]);
     return { inline_keyboard: rows };
   }
 

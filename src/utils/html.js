@@ -1,20 +1,20 @@
 'use strict';
 
 /**
- * HTML escaping for Telegram parse_mode:'HTML' messages.
- * All dynamic user-supplied text MUST go through this before sending.
+ * Escapes unsafe HTML characters to prevent HTML injection in Telegram messages.
+ * @param {string} str Unsafe text string
+ * @returns {string} Safe HTML string
  */
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
-/** Escape user text into a code block body. */
-function codeBlock(str) {
-  return `<code>${escapeHtml(str)}</code>`;
-}
-
-module.exports = { escapeHtml, codeBlock };
+module.exports = {
+  escapeHtml
+};
